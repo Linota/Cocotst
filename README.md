@@ -15,6 +15,10 @@ _Easily to code qqoffcial bot. ._
 
 **请自行反向代理 Webhook 服务器并添加 HTTPS**
 
+**推送地址为 `https://your.domain/postevent`**
+
+**请注意, 本项目未对 Webhook 所接收的数据进行校验，后期将会添加签名校验**
+
 Cocotst 依赖于 [`GraiaProject`](https://github.com/GraiaProject)
 相信它可以给你带来良好的 `Python QQ Bot` 开发体验.
 
