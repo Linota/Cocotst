@@ -1,0 +1,37 @@
+[project]
+name = "Cocotst"
+version = "0.0.1RC1"
+description = "Easily to code qqoffcial bot."
+authors = [
+    {name = "Sibuxiangx", email = "sibuxiang@proton.me"},
+]
+dependencies = [
+    "uvicorn>=0.32.0",
+    "fastapi>=0.115.4",
+    "graia-broadcast>=0.23.5",
+    "cryptography>=43.0.3",
+    "loguru>=0.7.2",
+    "aiohttp>=3.10.10",
+    "requests>=2.32.3",
+    "Launart>=0.8.2",
+    "aiofiles>=24.1.0",
+]
+requires-python = ">=3.11"
+readme = "README.md"
+license = {text = "MIT"}
+
+[project.optional-dependencies]
+dev = [
+    "black>=24.10.0",
+]
+alc = [
+    "arclet-alconna>=1.8.34",
+    "arclet-alconna-tools>=0.7.10",
+]
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+
+[tool.pdm]
+distribution = true
