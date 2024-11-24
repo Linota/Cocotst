@@ -1,23 +1,21 @@
+from creart import it
+from graia.broadcast import Broadcast
+from launart import Launart
 from loguru import logger
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse
 from starlette.routing import Route
-from launart import Launart
+
+from cocotst.event.message import C2CMessage, GroupMessage, MessageEvent
+from cocotst.network.model import Content, Group, Member, Payload
 from cocotst.network.services import QAuth
 from cocotst.network.sign import sign
-from cocotst.network.model import Content, Group, Payload, Member
-from cocotst.event.message import MessageEvent, GroupMessage, C2CMessage
-
-
-from graia.broadcast import Broadcast
-from creart import it
 
 broadcast = it(Broadcast)
 
 
 async def postevent(request):
     data = await request.json()
-
 
     op = data["op"]
     if op == 0:
@@ -29,9 +27,7 @@ async def postevent(request):
                 timestamp=payload.d.timestamp,
                 author=payload.d.author,
                 message_scene=payload.d.message_scene,
-                group=Group(
-                    group_id=payload.d.group_id, group_openid=payload.d.group_openid
-                ),
+                group=Group(group_id=payload.d.group_id, group_openid=payload.d.group_openid),
                 member=Member(member_openid=payload.d.author.member_openid),
             )
             broadcast.postEvent(event)

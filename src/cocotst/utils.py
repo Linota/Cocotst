@@ -1,11 +1,6 @@
 from typing import Optional
-from cocotst.message.element import (
-    Markdown,
-    Ark,
-    Embed,
-    Element,
-    MediaElement,
-)
+
+from cocotst.message.element import Ark, Element, Embed, Markdown, MediaElement
 
 
 def get_msg_type(content: str = "", element: Optional[Element] = None):

@@ -1,5 +1,6 @@
-from cryptography.hazmat.primitives.asymmetric import ed25519
 from typing import Union
+
+from cryptography.hazmat.primitives.asymmetric import ed25519
 
 
 def sign(secret: str, data: Union[str, bytes]) -> str:

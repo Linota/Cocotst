@@ -1,24 +1,3 @@
-<div align="center">
-
-# Cocotst
-
-_Easily to code qqoffcial bot. ._
-
-🥥
-
-[![PyPI](https://img.shields.io/pypi/v/cocotst)](https://pypi.org/project/cocotst)
-[![Python Version](https://img.shields.io/pypi/pyversions/cocotst)](https://pypi.org/project/cocotst)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
-[![License](https://img.shields.io/github/license/Linota/Cocotst)](https://github.com/Linota/Cocotst/blob/master/LICENSE)
-[![pdm-managed](https://img.shields.io/badge/pdm-managed-blueviolet)](https://pdm.fming.dev)
-
-[![docs](https://img.shields.io/badge/LINOTA-here-blue)](https://ctst.docs.linota.cn/)
-
-[![docs](https://img.shields.io/badge/API_文档-here-purple)](https://ctst.docs.linota.cn/api/NAV/)
-
-
-</div>
 
 **本项目仅支持 Webhook 事件推送**
 
@@ -107,10 +86,7 @@ Graia QQ 交流群: [邀请链接](https://jq.qq.com/?_wv=1027&k=VXp6plBD)
 
 > QQ 群不定时清除不活跃成员, 请自行重新申请入群.
 
-## 文档
 
-[![API 文档](https://img.shields.io/badge/API_文档-here-purple)](https://ctst.docs.linota.cn/api/NAV/)
-[![官方文档](https://img.shields.io/badge/文档-here-blue)](https://ctst.docs.linota.cn/)
 
 
 

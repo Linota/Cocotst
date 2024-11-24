@@ -1,17 +1,15 @@
+import asyncio
 import contextlib
-from launart import Launart
-from launart import Service
-from loguru import logger
-from cocotst.network.model import AccessToken
 
 import requests
-from cocotst.network.model import AccessToken
-import asyncio
 from aiohttp import ClientSession
-
-from uvicorn.server import Server
-from uvicorn.config import Config
+from launart import Launart, Service
+from loguru import logger
 from uvicorn._types import ASGIApplication
+from uvicorn.config import Config
+from uvicorn.server import Server
+
+from cocotst.network.model import AccessToken
 
 
 def auth(appid: str, clientSecret: str):
@@ -82,9 +80,7 @@ class QAuth(Service):
 
         async with self.stage("blocking"):
 
-            query_tsk = asyncio.create_task(
-                self.auth_async(mgr, self.appid, self.clientSecret)
-            )
+            query_tsk = asyncio.create_task(self.auth_async(mgr, self.appid, self.clientSecret))
             await mgr.status.wait_for_sigexit()
 
         async with self.stage("cleanup"):

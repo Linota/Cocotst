@@ -1,28 +1,24 @@
 import base64
 from os import PathLike
-from aiohttp import ClientSession
-from creart import it
-from launart import Launart
-from typing import Optional, Literal, Union
-from cocotst.event.message import C2CMessage, GroupMessage, MessageEvent
-from cocotst.message.element import Ark, Element, Embed, Markdown, MediaElement
-from cocotst.network.model import (
-    Target,
-    WebHookConfig,
-    FileServerConfig,
-)
-from cocotst.network.webhook import app as asgiapp
-from cocotst.network.services import QAuth, UvicornService
-from starlette.staticfiles import StaticFiles
-from uvicorn.config import Config
-from graia.broadcast.entities.dispatcher import BaseDispatcher
-from graia.broadcast.interfaces.dispatcher import DispatcherInterface
-from launart import Service
-from loguru import logger
-from graia.broadcast import Broadcast
-from cocotst.utils import get_msg_type
+from typing import Literal, Optional, Union
 
 import aiofiles
+from aiohttp import ClientSession
+from creart import it
+from graia.broadcast import Broadcast
+from graia.broadcast.entities.dispatcher import BaseDispatcher
+from graia.broadcast.interfaces.dispatcher import DispatcherInterface
+from launart import Launart, Service
+from loguru import logger
+from starlette.staticfiles import StaticFiles
+from uvicorn.config import Config
+
+from cocotst.event.message import C2CMessage, GroupMessage, MessageEvent
+from cocotst.message.element import Ark, Element, Embed, Markdown, MediaElement
+from cocotst.network.model import FileServerConfig, Target, WebHookConfig
+from cocotst.network.services import QAuth, UvicornService
+from cocotst.network.webhook import app as asgiapp
+from cocotst.utils import get_msg_type
 
 
 class Cocotst:
@@ -53,7 +49,7 @@ class Cocotst:
         is_sand_box: bool = False,
     ):
         """初始化 Cocotst 实例。
-        
+
         Args:
             appid (str): 在开放平台管理端上获得。
             clientSecret (str): 在开放平台管理端上获得。
@@ -79,9 +75,7 @@ class Cocotst:
                     if not self.is_sand_box
                     else f"https://sandbox.api.sgroup.qq.com{path}"
                 ),
-                headers={
-                    "Authorization": f"QQBot {self.mgr.get_component(QAuth).access_token.access_token}"
-                },
+                headers={"Authorization": f"QQBot {self.mgr.get_component(QAuth).access_token.access_token}"},
                 **kwargs,
             ) as resp:
                 return await resp.json()
@@ -121,9 +115,7 @@ class Cocotst:
             try:
                 assert file and file_type
             except AssertionError:
-                logger.error(
-                    "[App.basicSendGroupMessage] file 和 file_type 必须同时存在"
-                )
+                logger.error("[App.basicSendGroupMessage] file 和 file_type 必须同时存在")
                 raise ValueError("file 和 file_type 必须同时存在")
             file_type = ["image", "video", "voice", 4].index(file_type)
             media = await self.post_group_file(
@@ -181,22 +173,14 @@ class Cocotst:
         try:
             assert (target.target_id or target.event_id) and not proactive
         except AssertionError:
-            logger.error(
-                "[App.sendGroupMsg] 发送被动消息时必须提供 target.target_id 或 target.event_id "
-            )
-            raise ValueError(
-                "发送被动消息时必须提供 target.target_id 或 target.event_id "
-            )
+            logger.error("[App.sendGroupMsg] 发送被动消息时必须提供 target.target_id 或 target.event_id ")
+            raise ValueError("发送被动消息时必须提供 target.target_id 或 target.event_id ")
 
         return await self.basic_send_group_message(
             msg_type=get_msg_type(content, element),
             group_openid=target.target_unit,
             content=content,
-            file=(
-                await element.as_data_bytes()
-                if isinstance(element, MediaElement)
-                else None
-            ),
+            file=(await element.as_data_bytes() if isinstance(element, MediaElement) else None),
             file_type=element.type if isinstance(element, MediaElement) else None,
             event_id=target.event_id,
             msg_id=target.target_id,
@@ -290,21 +274,13 @@ class Cocotst:
         try:
             assert (target.target_id or target.event_id) and not proactive
         except AssertionError:
-            logger.error(
-                "[App.sendC2CMsg] 发送被动消息时必须提供 target.target_id 或 target.event_id "
-            )
-            raise ValueError(
-                "发送被动消息时必须提供 target.target_id 或 target.event_id "
-            )
+            logger.error("[App.sendC2CMsg] 发送被动消息时必须提供 target.target_id 或 target.event_id ")
+            raise ValueError("发送被动消息时必须提供 target.target_id 或 target.event_id ")
         return await self.basic_send_c2c_message(
             msg_type=get_msg_type(content, element),
             openid=target.target_unit,
             content=content,
-            file=(
-                await element.as_data_bytes()
-                if isinstance(element, MediaElement)
-                else None
-            ),
+            file=(await element.as_data_bytes() if isinstance(element, MediaElement) else None),
             file_type=element.type if isinstance(element, MediaElement) else None,
             event_id=target.event_id,
             msg_id=target.target_id,
@@ -330,13 +306,9 @@ class Cocotst:
                 proactive (bool, optional): 是否主动发送. 将会占用主动发送次数。
         """
         if isinstance(target, C2CMessage):
-            return await self.send_c2c_message(
-                target.target, content, element, proactive
-            )
+            return await self.send_c2c_message(target.target, content, element, proactive)
         if isinstance(target, GroupMessage):
-            return await self.send_group_message(
-                target.target, content, element, proactive
-            )
+            return await self.send_group_message(target.target, content, element, proactive)
 
     async def post_group_file(
         self,

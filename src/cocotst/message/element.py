@@ -1,6 +1,7 @@
-from pydantic import BaseModel
 from typing import Dict, List, Literal, Optional
+
 import aiofiles
+from pydantic import BaseModel
 
 
 class Element(BaseModel):

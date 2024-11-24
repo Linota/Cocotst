@@ -1,12 +1,7 @@
 """Cocotst 基础的 parser, 包括 DetectPrefix 与 DetectSuffix, Modified from Graia Ariadne"""
 
 import abc
-from typing import (
-    Iterable,
-    List,
-    Optional,
-    Union,
-)
+from typing import Iterable, List, Optional, Union
 
 from graia.broadcast.builtin.derive import Derive
 from graia.broadcast.entities.decorator import Decorator
@@ -21,15 +16,11 @@ class ContentDecorator(abc.ABC, Decorator, Derive[Content]):
     pre = True
 
     @abc.abstractmethod
-    async def __call__(
-        self, content: Content, interface: DispatcherInterface
-    ) -> Optional[Content]: ...
+    async def __call__(self, content: Content, interface: DispatcherInterface) -> Optional[Content]: ...
 
     async def target(self, interface: DecoratorInterface):
         return await self(
-            await interface.dispatcher_interface.lookup_param(
-                "content", Content, None
-            ),
+            await interface.dispatcher_interface.lookup_param("content", Content, None),
             interface.dispatcher_interface,
         )
 
@@ -87,7 +78,8 @@ class ContainKeyword(ContentDecorator):
         if self.keyword in content.content:
             return content
         raise ExecutionStop
-    
+
+
 class QCommandMatcher(ContentDecorator):
     """QCommand 匹配器"""
 
@@ -106,7 +98,6 @@ class QCommandMatcher(ContentDecorator):
                 return Content(content.content.removeprefix(command).removeprefix(" "))
 
         raise ExecutionStop
-
 
 
 StartsWith = DetectPrefix

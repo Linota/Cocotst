@@ -1,7 +1,8 @@
-from pydantic import BaseModel
-from graia.broadcast.interfaces.dispatcher import DispatcherInterface
-from graia.broadcast.entities.dispatcher import BaseDispatcher
 from typing import Optional
+
+from graia.broadcast.entities.dispatcher import BaseDispatcher
+from graia.broadcast.interfaces.dispatcher import DispatcherInterface
+from pydantic import BaseModel
 
 from cocotst.network.model import Author, Content, Group, Member, MessageScene, Target
 
