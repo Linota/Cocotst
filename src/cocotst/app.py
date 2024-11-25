@@ -1,4 +1,5 @@
 import base64
+import random
 from os import PathLike
 from typing import Literal, Optional, Union
 
@@ -10,14 +11,18 @@ from graia.broadcast.entities.dispatcher import BaseDispatcher
 from graia.broadcast.interfaces.dispatcher import DispatcherInterface
 from launart import Launart, Service
 from loguru import logger
+from starlette.applications import Starlette
+from starlette.routing import Route
 from starlette.staticfiles import StaticFiles
 from uvicorn.config import Config
 
+from cocotst.config import DebugConfig
+from cocotst.event.builtin import DebugFlagSetup
 from cocotst.event.message import C2CMessage, GroupMessage, MessageEvent
 from cocotst.message.element import Ark, Element, Embed, Markdown, MediaElement
 from cocotst.network.model import FileServerConfig, Target, WebHookConfig
 from cocotst.network.services import QAuth, UvicornService
-from cocotst.network.webhook import app as asgiapp
+from cocotst.network.webhook import postevent
 from cocotst.utils import get_msg_type
 
 
@@ -38,6 +43,10 @@ class Cocotst:
     """文件服务器配置。"""
     is_sand_box: bool
     """是否使用沙箱模式。"""
+    random_msgseq: bool = True
+    """是否随机生成 msg_seq。这决定了是否可以重复回复相同的消息。"""
+    debug: Optional[DebugConfig] = None
+    """调试配置。"""
 
     def __init__(
         self,
@@ -47,6 +56,8 @@ class Cocotst:
         webhook_config: Optional[WebHookConfig] = None,
         file_server_config: Optional[FileServerConfig] = None,
         is_sand_box: bool = False,
+        random_msgseq: bool = True,
+        debug: Optional[DebugConfig] = None,
     ):
         """初始化 Cocotst 实例。
 
@@ -57,6 +68,8 @@ class Cocotst:
             webhook_config (Optional[WebHookConfig], optional): WebHook 配置。请自行反向代理 WebHook。
             file_server_config (Optional[FileServerConfig], optional): 文件服务器配置。
             is_sand_box (bool, optional): 是否使用沙箱模式。
+            random_msgseq (bool, optional): 是否随机生成 msg_seq。这决定了是否可以重复回复相同的消息。
+            debug (Optional[DebugConfig], optional): 调试配置。
         """
         self.appid = appid
         self.clientSecret = clientSecret
@@ -65,6 +78,11 @@ class Cocotst:
         self.webhook_config = webhook_config or WebHookConfig()
         self.file_server_config = file_server_config or FileServerConfig()
         self.is_sand_box = is_sand_box
+        self.random_msgseq = random_msgseq
+        if debug:
+            logger.debug("[Cocotst] DebugMode: True")
+            logger.debug("[Cocotst] DebugConfig: {}", debug)
+            self.broadcast.postEvent(DebugFlagSetup(debug_config=debug))
 
     async def common_api(self, path: str, method: str, **kwargs):
         async with ClientSession() as session:
@@ -149,7 +167,7 @@ class Cocotst:
                 "message_reference": message_reference,
                 "event_id": event_id,
                 "msg_id": msg_id,
-                "msg_seq": msg_seq,
+                "msg_seq": random.randint(1, 100) if self.random_msgseq else msg_seq,
                 "media": media,
             },
         )
@@ -251,7 +269,7 @@ class Cocotst:
                 "message_reference": message_reference,
                 "event_id": event_id,
                 "msg_id": msg_id,
-                "msg_seq": msg_seq,
+                "msg_seq": random.randint(1, 100) if self.random_msgseq else msg_seq,
             },
         )
 
@@ -370,11 +388,21 @@ class Cocotst:
             },
         )
 
+    @classmethod
+    def current(cls) -> "Cocotst":
+        """获取当前 Cocotst 实例。"""
+        return it(Launart).get_component(App).app
+
     def launch_blocking(self):
+        asgiapp = Starlette(
+            routes=[
+                Route(self.webhook_config.postevent, postevent, methods=["POST"]),
+            ]
+        )
         self.mgr.add_component(QAuth(self.appid, self.clientSecret))
         (
             asgiapp.mount(
-                "/fileserver",
+                self.file_server_config.remote_url,
                 app=StaticFiles(directory=self.file_server_config.localpath),
             )
             if self.file_server_config.localpath
@@ -403,8 +431,6 @@ class CocotstDispatcher(BaseDispatcher):
 
 
 class ApplicationReady:
-    pass
-
     class Dispatcher(BaseDispatcher):
         @staticmethod
         async def catch(interface: DispatcherInterface):

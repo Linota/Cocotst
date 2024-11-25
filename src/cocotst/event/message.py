@@ -4,7 +4,8 @@ from graia.broadcast.entities.dispatcher import BaseDispatcher
 from graia.broadcast.interfaces.dispatcher import DispatcherInterface
 from pydantic import BaseModel
 
-from cocotst.network.model import Author, Content, Group, Member, MessageScene, Target
+from cocotst.network.model import (Author, Content, Group, Member,
+                                   MessageScene, Target)
 
 
 class MessageEvent(BaseModel):
