@@ -70,6 +70,40 @@ Cocotst 依赖于 [`GraiaProject`](https://github.com/GraiaProject)
 - ⭕ Keyboard 消息支持
 - ⭕ ~~ARK, Embed 消息支持~~
 
+## 结构目录
+
+```
+Cocotst
+├── docs 文档
+├── LICENSE 许可证
+├── mkdocs.yml mkdocs 配置文件
+├── pdm.lock 依赖锁
+├── pyproject.toml 项目配置文件
+├── README.md 说明文档
+└── src 源码
+   └── cocotst 
+        ├── all.py 方便引用所有模块
+        ├── app.py Tencent API 封装
+        ├── config.py 各类配置文件
+        ├── dispatcher.py 
+        ├── event 事件模块
+        │   ├── builtin.py 内置事件
+        │   ├── message.py 消息事件
+        │   ├── receive.py 开关推送事件
+        │   └── robot.py Bot 位置事件
+        ├── message 消息模块
+        │   ├── element.py 消息元素
+        │   ├── parser
+        │   │   └── base.py 基础消息解析器
+        ├── network 网络模块
+        │   ├── model.py 数据模型
+        │   ├── services.py 服务模型
+        │   ├── sign.py 签名模块
+        │   └── webhook.py Webhook 模块，负责接收 Tencent 发送的事件。处理后分发给各个事件处理器
+        ├── services.py 服务模块
+        └── utils.py 工具模块
+```
+    
 
 ## 开始使用
 
