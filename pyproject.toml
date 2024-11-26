@@ -1,6 +1,6 @@
 [project]
 name = "Cocotst"
-version = "0.0.2"
+version = "0.0.4"
 description = "Easily to code qqoffcial bot."
 authors = [
     {name = "Sibuxiangx", email = "sibuxiang@proton.me"},
@@ -47,3 +47,6 @@ distribution = true
 [tool.black]
 line-length = 110
 target-version = ['py39']
+
+[tool.pdm.build]
+includes = ["src/cocotst"]

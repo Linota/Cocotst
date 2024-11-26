@@ -10,8 +10,7 @@ from cocotst.config import DebugFlag
 from cocotst.event.builtin import DebugFlagSetup
 from cocotst.event.message import C2CMessage, GroupMessage
 from cocotst.event.receive import GroupAllowReceive, GroupRejectReceive
-from cocotst.event.robot import (FriendAdd, FriendDel, GroupAddRobot,
-                                 GroupDelRobot)
+from cocotst.event.robot import FriendAdd, FriendDel, GroupAddRobot, GroupDelRobot
 from cocotst.network.model import Content, Group, Member, Payload
 from cocotst.network.services import QAuth
 from cocotst.network.sign import sign

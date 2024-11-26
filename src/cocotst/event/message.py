@@ -1,11 +1,8 @@
-from typing import Optional
-
 from graia.broadcast.entities.dispatcher import BaseDispatcher
 from graia.broadcast.interfaces.dispatcher import DispatcherInterface
 from pydantic import BaseModel
 
-from cocotst.network.model import (Author, Content, Group, Member,
-                                   MessageScene, Target)
+from cocotst.network.model import Author, Content, Group, Member, MessageScene, Target
 
 
 class MessageEvent(BaseModel):
@@ -20,6 +17,15 @@ class MessageEvent(BaseModel):
     """消息发送者"""
     message_scene: MessageScene
     """消息场景"""
+
+    class Dispatcher(BaseDispatcher):
+        @staticmethod
+        async def catch(interface: DispatcherInterface["MessageEvent"]):
+            if isinstance(interface.event, MessageEvent):
+                if interface.annotation == Content:
+                    return interface.event.content
+                if interface.annotation == Author:
+                    return interface.event.author
 
 
 class GroupMessage(MessageEvent):
