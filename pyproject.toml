@@ -1,6 +1,6 @@
 [project]
 name = "Cocotst"
-version = "0.0.4"
+version = "0.0.4rc1"
 description = "Easily to code qqoffcial bot."
 authors = [
     {name = "Sibuxiangx", email = "sibuxiang@proton.me"},
@@ -15,6 +15,9 @@ dependencies = [
     "requests>=2.32.3",
     "Launart>=0.8.2",
     "aiofiles>=24.1.0",
+    "typer>=0.13.1",
+    "richuru>=0.1.1",
+    "watchdog[watchmedo]>=6.0.0",
 ]
 requires-python = ">=3.11"
 readme = "README.md"

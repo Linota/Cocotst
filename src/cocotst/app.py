@@ -5,6 +5,7 @@ from typing import Literal, Optional, Union
 
 import aiofiles
 from aiohttp import ClientSession
+from aiohttp.connector import TCPConnector
 from creart import it
 from graia.broadcast import Broadcast
 from graia.broadcast.entities.dispatcher import BaseDispatcher
@@ -15,7 +16,6 @@ from starlette.applications import Starlette
 from starlette.routing import Route
 from starlette.staticfiles import StaticFiles
 from uvicorn.config import Config
-
 from cocotst.config import DebugConfig
 from cocotst.event.builtin import DebugFlagSetup
 from cocotst.event.message import C2CMessage, GroupMessage, MessageEvent
@@ -24,6 +24,9 @@ from cocotst.network.model import FileServerConfig, Target, WebHookConfig
 from cocotst.network.services import QAuth, UvicornService
 from cocotst.network.webhook import postevent
 from cocotst.utils import get_msg_type
+from richuru import install
+
+install()
 
 
 class Cocotst:
@@ -83,9 +86,11 @@ class Cocotst:
             logger.debug("[Cocotst] DebugMode: True")
             logger.debug("[Cocotst] DebugConfig: {}", debug)
             self.broadcast.postEvent(DebugFlagSetup(debug_config=debug))
+            self.verify_ssl = debug.api_call.ssl_verify
 
     async def common_api(self, path: str, method: str, **kwargs):
-        async with ClientSession() as session:
+        connector = TCPConnector(verify_ssl=self.debug.api_call.ssl_verify) if self.verify_ssl else None
+        async with ClientSession(connector=connector) as session:
             async with session.request(
                 method,
                 (
