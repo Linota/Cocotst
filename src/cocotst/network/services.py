@@ -62,21 +62,21 @@ class QAuth(Service):
         """
         while True:
             await asyncio.sleep(int(self.access_token.expires_in))
-            logger.info("[QApi] Refreshing access token!")
+            logger.info("[QApi] Refreshing access token!", style="blue")
             async with ClientSession() as session:
                 async with session.post(
                     "https://bots.qq.com/app/getAppAccessToken",
                     json={"appId": appid, "clientSecret": clientSecret},
                 ) as resp:
                     self.access_token = AccessToken.model_validate(await resp.json())
-            logger.info("[QApi] Access token refreshed")
+            logger.success("[QApi] Access token refreshed", style="green")
 
     async def launch(self, mgr: Launart):
 
         async with self.stage("preparing"):
-            logger.info("[QApi] Start fetching access token!")
+            logger.info("[QApi]Start fetching access token!", style="blue")
             self.access_token = auth(self.appid, self.clientSecret)
-        logger.info(f"[QApi] Access token Fetched")
+        logger.success(f"[QApi] Access token Fetched", style="green")
 
         async with self.stage("blocking"):
 
@@ -113,7 +113,7 @@ class UvicornService(Service):
 
         server = Server(config=self.config)
         async with self.stage("preparing"):
-            logger.info("[UvicornService] Start running server!")
+            logger.info("[UvicornService] Start running server!", style="blue")
 
         async with self.stage("blocking"):
             server_task = asyncio.create_task(server.serve())

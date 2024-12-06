@@ -1,6 +1,7 @@
 from typing import Optional, Union
 
 from graia.broadcast.entities.dispatcher import BaseDispatcher
+from graia.broadcast.entities.event import Dispatchable
 from graia.broadcast.interfaces.dispatcher import DispatcherInterface
 from pydantic import BaseModel, RootModel
 
@@ -87,6 +88,19 @@ class Target(BaseModel):
     """被动回复消息的时候需要的消息 id"""
     event_id: Optional[str] = None
     """非用户主动事件触发的时候需要的 event_id"""
+
+
+class CocotstBaseEvent(BaseModel, Dispatchable):
+    """cocotst 基础事件"""
+
+
+class OpenAPIErrorCallback(BaseModel):
+    """OpenAPI 回调"""
+
+    message: str
+    """错误信息"""
+    code: int
+    """错误码"""
 
 
 class WebHookConfig(BaseModel):

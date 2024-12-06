@@ -12,19 +12,25 @@ from graia.broadcast.entities.dispatcher import BaseDispatcher
 from graia.broadcast.interfaces.dispatcher import DispatcherInterface
 from launart import Launart, Service
 from loguru import logger
+from richuru import install
 from starlette.applications import Starlette
 from starlette.routing import Route
 from starlette.staticfiles import StaticFiles
 from uvicorn.config import Config
+
 from cocotst.config import DebugConfig
 from cocotst.event.builtin import DebugFlagSetup
-from cocotst.event.message import C2CMessage, GroupMessage, MessageEvent
+from cocotst.event.message import C2CMessage, GroupMessage, MessageEvent, MessageSent
 from cocotst.message.element import Ark, Element, Embed, Markdown, MediaElement
-from cocotst.network.model import FileServerConfig, Target, WebHookConfig
+from cocotst.network.model import (
+    FileServerConfig,
+    OpenAPIErrorCallback,
+    Target,
+    WebHookConfig,
+)
 from cocotst.network.services import QAuth, UvicornService
 from cocotst.network.webhook import postevent
 from cocotst.utils import get_msg_type
-from richuru import install
 
 install()
 
@@ -82,14 +88,19 @@ class Cocotst:
         self.file_server_config = file_server_config or FileServerConfig()
         self.is_sand_box = is_sand_box
         self.random_msgseq = random_msgseq
+        self.debug = debug
         if debug:
             logger.debug("[Cocotst] DebugMode: True")
             logger.debug("[Cocotst] DebugConfig: {}", debug)
             self.broadcast.postEvent(DebugFlagSetup(debug_config=debug))
             self.verify_ssl = debug.api_call.ssl_verify
 
-    async def common_api(self, path: str, method: str, **kwargs):
-        connector = TCPConnector(verify_ssl=self.debug.api_call.ssl_verify) if self.verify_ssl else None
+    async def common_api(self, path: str, method: str, **kwargs) -> Union[dict, OpenAPIErrorCallback]:
+        connector = (
+            TCPConnector(verify_ssl=self.debug.api_call.ssl_verify)
+            if (self.debug and self.verify_ssl)
+            else None
+        )
         async with ClientSession(connector=connector) as session:
             async with session.request(
                 method,
@@ -101,7 +112,12 @@ class Cocotst:
                 headers={"Authorization": f"QQBot {self.mgr.get_component(QAuth).access_token.access_token}"},
                 **kwargs,
             ) as resp:
-                return await resp.json()
+                rt = await resp.json()
+                if "code" in rt:
+                    cb = OpenAPIErrorCallback(**rt)
+                    logger.error("[App.commonApi] OpenAPIErrorCallback: {}", cb, style="bold red")
+                    return cb
+                return rt
 
     async def basic_send_group_message(
         self,
@@ -117,7 +133,7 @@ class Cocotst:
         content: str = " ",
         file: Optional[Union[PathLike, bytes, None]] = None,
         file_type: Optional[Literal["image", "video", "voice", 4]] = None,
-    ):
+    ) -> Union[MessageSent, OpenAPIErrorCallback]:
         """发送群消息
 
         Args:
@@ -140,10 +156,10 @@ class Cocotst:
             except AssertionError:
                 logger.error("[App.basicSendGroupMessage] file 和 file_type 必须同时存在")
                 raise ValueError("file 和 file_type 必须同时存在")
-            file_type = ["image", "video", "voice", 4].index(file_type)
+            _file_type = ["image", "video", "voice", 4].index(file_type)
             media = await self.post_group_file(
                 group_openid,
-                file_type + 1,
+                _file_type + 1,
                 file_path=file if isinstance(file, PathLike) else None,
                 file_data=file if not isinstance(file, PathLike) else None,
             )
@@ -159,7 +175,7 @@ class Cocotst:
             msg_type = 4
         """
 
-        return await self.common_api(
+        resp = await self.common_api(
             f"/v2/groups/{group_openid}/messages",
             "POST",
             json={
@@ -176,6 +192,14 @@ class Cocotst:
                 "media": media,
             },
         )
+        if isinstance(resp, OpenAPIErrorCallback):
+            return resp
+        ms = MessageSent(**resp)
+        logger.info(
+            f"[Group] MessageSent: {ms.id} >> <BOT> --{content}-{file_type}--> <Group:{group_openid}> >>",
+            style="bold green",
+        )
+        return ms
 
     async def send_group_message(
         self,
@@ -183,7 +207,7 @@ class Cocotst:
         content: str = " ",
         element: Optional[Element] = None,
         proactive: bool = False,
-    ):
+    ) -> Union[MessageSent, OpenAPIErrorCallback]:
         """发送群消息
 
         Args:
@@ -199,7 +223,7 @@ class Cocotst:
             logger.error("[App.sendGroupMsg] 发送被动消息时必须提供 target.target_id 或 target.event_id ")
             raise ValueError("发送被动消息时必须提供 target.target_id 或 target.event_id ")
 
-        return await self.basic_send_group_message(
+        resp = await self.basic_send_group_message(
             msg_type=get_msg_type(content, element),
             group_openid=target.target_unit,
             content=content,
@@ -211,6 +235,7 @@ class Cocotst:
             ark=element if isinstance(element, Ark) else None,
             keyboard=element if isinstance(element, Embed) else None,
         )
+        return resp
 
     async def basic_send_c2c_message(
         self,
@@ -226,7 +251,7 @@ class Cocotst:
         content: str = " ",
         file: Optional[Union[PathLike, bytes, None]] = None,
         file_type: Optional[Literal["image", "video", "voice", 4]] = None,
-    ):
+    ) -> Union[MessageSent, OpenAPIErrorCallback]:
         """发送私聊消息
 
         Args:
@@ -251,17 +276,17 @@ class Cocotst:
             except AssertionError:
                 logger.error("[App.basicSendC2CMessage] file 和 file_type 必须同时存在")
                 raise ValueError("file 和 file_type 必须同时存在")
-            file_type = ["image", "video", "voice", 4].index(file_type)
+            _file_type = ["image", "video", "voice", 4].index(file_type)
             media = await self.post_c2c_file(
                 openid,
-                file_type + 1,
+                _file_type + 1,
                 file_path=file if isinstance(file, PathLike) else None,
                 file_data=file if not isinstance(file, PathLike) else None,
             )
 
         else:
             media = None
-        return await self.common_api(
+        resp = await self.common_api(
             f"/v2/users/{openid}/messages",
             "POST",
             json={
@@ -277,6 +302,14 @@ class Cocotst:
                 "msg_seq": random.randint(1, 100) if self.random_msgseq else msg_seq,
             },
         )
+        if isinstance(resp, OpenAPIErrorCallback):
+            return resp
+        ms = MessageSent(**resp)
+        logger.info(
+            f"[C2C] MessageSent: {ms.id} >> <BOT> --{content}-{file_type}--> <Client:{openid}> >>",
+            style="bold green",
+        )
+        return ms
 
     async def send_c2c_message(
         self,
@@ -284,7 +317,7 @@ class Cocotst:
         content: str = " ",
         element: Optional[Element] = None,
         proactive: bool = False,
-    ):
+    ) -> Union[MessageSent, OpenAPIErrorCallback]:
         """发送私聊消息
 
         Args:
@@ -318,7 +351,7 @@ class Cocotst:
         content: str = " ",
         element: Optional[Element] = None,
         proactive: bool = False,
-    ):
+    ) -> Union[MessageSent, OpenAPIErrorCallback]:
         """发送消息
 
         Args:
@@ -460,14 +493,12 @@ class App(Service):
 
     async def launch(self, manager):
         async with self.stage("preparing"):
-            logger.info("[APP] Inject Dispatchers")
+            logger.info("[APP] Inject Dispatchers", style="blue")
             broadcast = it(Broadcast)
             broadcast.finale_dispatchers.append(CocotstDispatcher())
-            logger.info("[APP] Injected Dispatchers")
+            logger.info("[APP] Injected Dispatchers", style="green")
             broadcast.postEvent(ApplicationReady())
-
         async with self.stage("blocking"):
             pass
-
         async with self.stage("cleanup"):
             pass

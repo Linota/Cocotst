@@ -1,11 +1,10 @@
 from graia.broadcast.entities.dispatcher import BaseDispatcher
 from graia.broadcast.interfaces.dispatcher import DispatcherInterface
-from pydantic import BaseModel
 
-from cocotst.network.model import Author, Content, Group, Member, MessageScene, Target
+from cocotst.network.model import Author, CocotstBaseEvent, Content, Group, Member, MessageScene, Target
 
 
-class MessageEvent(BaseModel):
+class MessageEvent(CocotstBaseEvent):
     """消息事件"""
 
     id: str
@@ -56,6 +55,8 @@ class GroupMessage(MessageEvent):
 
 
 class C2CMessage(MessageEvent):
+    """C2C 消息事件"""
+
     @property
     def target(self):
         """快速回复目标"""
@@ -71,3 +72,14 @@ class C2CMessage(MessageEvent):
                     return interface.event.author
                 if interface.annotation == Target:
                     return interface.event.target
+
+
+class MessageSent(CocotstBaseEvent):
+    """消息发送事件"""
+
+    id: str
+    """消息 ID"""
+    timestamp: str
+    """消息发送时间"""
+
+    class Dispatcher(BaseDispatcher): ...

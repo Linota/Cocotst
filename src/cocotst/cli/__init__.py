@@ -1,6 +1,6 @@
-from typer import Typer
-from richuru import install
 from loguru import logger
+from richuru import install
+from typer import Typer
 
 install()
 

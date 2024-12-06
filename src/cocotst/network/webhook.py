@@ -9,7 +9,12 @@ from starlette.responses import JSONResponse
 from cocotst.config import DebugFlag
 from cocotst.event.builtin import DebugFlagSetup
 from cocotst.event.message import C2CMessage, GroupMessage
-from cocotst.event.receive import GroupAllowReceive, GroupRejectReceive
+from cocotst.event.proactive import (
+    C2CAllowBotProactiveMessage,
+    C2CRejectBotProactiveMessage,
+    GroupAllowBotProactiveMessage,
+    GroupRejectBotProactiveMessage,
+)
 from cocotst.event.robot import FriendAdd, FriendDel, GroupAddRobot, GroupDelRobot
 from cocotst.network.model import Content, Group, Member, Payload
 from cocotst.network.services import QAuth
@@ -31,10 +36,12 @@ async def postevent(request):
     data = await request.json()
     if debug_flag.debug_flag:
         if debug_flag.debug_config.webhook.print_webhook_data:
-            logger.debug(f"[DEBUG] Webhook data:\n{json.dumps(data, indent=4)}")
+            logger.info(f"[WebHook][DEBUG] Webhook data:", style="bold yellow")
+            print(json.dumps(data, indent=4))
     op = data["op"]
     if op == 0:
         payload = Payload(**data)
+        event = None
         if payload.t == "GROUP_AT_MESSAGE_CREATE":
             event = GroupMessage(
                 id=payload.d.id,
@@ -46,7 +53,7 @@ async def postevent(request):
                 member=Member(member_openid=payload.d.author.member_openid),
             )
             broadcast.postEvent(event)
-            logger.info("[RECIEVE] GroupMessage: {}", event.id)
+
         elif payload.t == "C2C_MESSAGE_CREATE":
             event = C2CMessage(
                 id=payload.d.id,
@@ -56,25 +63,41 @@ async def postevent(request):
                 message_scene=payload.d.message_scene,
             )
             broadcast.postEvent(event)
-            logger.info("[RECIEVE] C2CMessage: {}", event.id)
+
         elif payload.t == "GROUP_MSG_RECEIVE":
-            event = GroupAllowReceive(
+            event = GroupAllowBotProactiveMessage(
                 id=payload.id,
                 timestamp=payload.d.timestamp,
                 group_openid=payload.d.group_openid,
                 op_member_openid=payload.d.op_member_openid,
             )
             broadcast.postEvent(event)
-            logger.info("[RECIEVE] GroupAllowReceive: {}", event.id)
+
         elif payload.t == "GROUP_MSG_REJECT":
-            event = GroupRejectReceive(
+            event = GroupRejectBotProactiveMessage(
                 id=payload.id,
                 timestamp=payload.d.timestamp,
                 group_openid=payload.d.group_openid,
                 op_member_openid=payload.d.op_member_openid,
             )
             broadcast.postEvent(event)
-            logger.info("[RECIEVE] GroupRejectReceive: {}", event.id)
+
+        elif payload.t == "C2C_MSG_REJECT":
+            event = C2CRejectBotProactiveMessage(
+                id=payload.id,
+                timestamp=payload.d.timestamp,
+                user_openid=payload.d.openid,
+            )
+            broadcast.postEvent(event)
+
+        elif payload.t == "C2C_MSG_RECEIVE":
+            event = C2CAllowBotProactiveMessage(
+                id=payload.id,
+                timestamp=payload.d.timestamp,
+                user_openid=payload.d.openid,
+            )
+            broadcast.postEvent(event)
+
         elif payload.t == "GROUP_ADD_ROBOT":
             event = GroupAddRobot(
                 id=payload.id,
@@ -83,7 +106,7 @@ async def postevent(request):
                 op_member_openid=payload.d.op_member_openid,
             )
             broadcast.postEvent(event)
-            logger.info("[RECIEVE] GroupAddRobot: {}", event.id)
+
         elif payload.t == "GROUP_DEL_ROBOT":
             event = GroupDelRobot(
                 id=payload.id,
@@ -92,7 +115,7 @@ async def postevent(request):
                 op_member_openid=payload.d.op_member_openid,
             )
             broadcast.postEvent(event)
-            logger.info("[RECIEVE] GroupDelRobot: {}", event.id)
+
         elif payload.t == "FRIEND_ADD":
             event = FriendAdd(
                 id=payload.id,
@@ -100,7 +123,7 @@ async def postevent(request):
                 user_openid=payload.d.openid,
             )
             broadcast.postEvent(event)
-            logger.info("[RECIEVE] FriendAdd: {}", event.id)
+
         elif payload.t == "FRIEND_DEL":
             event = FriendDel(
                 id=payload.id,
@@ -108,8 +131,7 @@ async def postevent(request):
                 user_openid=payload.d.openid,
             )
             broadcast.postEvent(event)
-            logger.info("[RECIEVE] FriendDel: {}", event.id)
-
+        logger.info(f"[INFO][REC][{event.__class__.__name__}] {event}", style="bold blue")
         return JSONResponse({"status": "ok"})
 
     elif op == 13:

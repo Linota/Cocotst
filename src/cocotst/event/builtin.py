@@ -2,12 +2,12 @@ from typing import Optional
 
 from graia.broadcast.entities.dispatcher import BaseDispatcher
 from graia.broadcast.interfaces.dispatcher import DispatcherInterface
-from pydantic import BaseModel
 
 from cocotst.config import DebugConfig
+from cocotst.network.model import CocotstBaseEvent
 
 
-class DebugFlagSetup(BaseModel):
+class DebugFlagSetup(CocotstBaseEvent):
     debug_config: Optional[DebugConfig] = None
 
     class Dispatcher(BaseDispatcher):

@@ -6,25 +6,8 @@ from graia.broadcast.interfaces.dispatcher import DispatcherInterface
 from cocotst.network.model import CocotstBaseEvent, Target
 
 
-class GroupDelRobot(CocotstBaseEvent):
-    """群删除机器人"""
-
-    id: str
-    """事件 ID"""
-    timestamp: int
-    """事件触发时间"""
-    group_openid: str
-    """群 openid"""
-    op_member_openid: str
-    """操作者 openid"""
-
-    @property
-    def target(self):
-        return Target(target_unit=self.group_openid, event_id=self.id)
-
-
-class GroupAddRobot(CocotstBaseEvent):
-    """群添加机器人"""
+class GroupAllowBotProactiveMessage(CocotstBaseEvent):
+    """群打开消息推送"""
 
     id: str
     """事件 ID"""
@@ -41,21 +24,45 @@ class GroupAddRobot(CocotstBaseEvent):
 
     class Dispatcher(BaseDispatcher):
         @staticmethod
-        async def catch(interface: DispatcherInterface["GroupAddRobot"]):
-            if isinstance(interface.event, GroupAddRobot):
+        async def catch(interface: DispatcherInterface["GroupAllowBotProactiveMessage"]):
+            if isinstance(interface.event, GroupAllowBotProactiveMessage):
                 if interface.annotation == Target:
                     return interface.event.target
 
 
-class FriendAdd(CocotstBaseEvent):
-    """好友添加"""
+class GroupRejectBotProactiveMessage(CocotstBaseEvent):
+    """群关闭消息推送"""
 
     id: str
     """事件 ID"""
-    user_openid: str
-    """用户 openid"""
     timestamp: int
     """事件触发时间"""
+    group_openid: str
+    """群 openid"""
+    op_member_openid: str
+    """操作者 openid"""
+
+    @property
+    def target(self):
+        return Target(target_unit=self.group_openid, event_id=self.id)
+
+    class Dispatcher(BaseDispatcher):
+        @staticmethod
+        async def catch(interface: DispatcherInterface["GroupRejectBotProactiveMessage"]):
+            if isinstance(interface.event, GroupRejectBotProactiveMessage):
+                if interface.annotation == Target:
+                    return interface.event.target
+
+
+class C2CAllowBotProactiveMessage(CocotstBaseEvent):
+    """C2C 打开消息推送"""
+
+    id: str
+    """事件 ID"""
+    timestamp: int
+    """事件触发时间"""
+    user_openid: str
+    """用户 openid"""
 
     @property
     def target(self):
@@ -63,21 +70,21 @@ class FriendAdd(CocotstBaseEvent):
 
     class Dispatcher(BaseDispatcher):
         @staticmethod
-        async def catch(interface: DispatcherInterface["FriendAdd"]):
-            if isinstance(interface.event, FriendAdd):
+        async def catch(interface: DispatcherInterface["C2CAllowBotProactiveMessage"]):
+            if isinstance(interface.event, C2CAllowBotProactiveMessage):
                 if interface.annotation == Target:
                     return interface.event.target
 
 
-class FriendDel(CocotstBaseEvent):
-    """好友删除"""
+class C2CRejectBotProactiveMessage(CocotstBaseEvent):
+    """C2C 关闭消息推送"""
 
     id: str
     """事件 ID"""
-    user_openid: str
-    """用户 openid"""
     timestamp: int
     """事件触发时间"""
+    user_openid: str
+    """用户 openid"""
 
     @property
     def target(self):
@@ -85,7 +92,7 @@ class FriendDel(CocotstBaseEvent):
 
     class Dispatcher(BaseDispatcher):
         @staticmethod
-        async def catch(interface: DispatcherInterface["FriendDel"]):
-            if isinstance(interface.event, FriendDel):
+        async def catch(interface: DispatcherInterface["C2CRejectBotProactiveMessage"]):
+            if isinstance(interface.event, C2CRejectBotProactiveMessage):
                 if interface.annotation == Target:
                     return interface.event.target
