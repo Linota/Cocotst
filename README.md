@@ -133,7 +133,9 @@ if __name__ == "__main__":
 
 ## 讨论
 
-Graia QQ 交流群: [邀请链接](https://jq.qq.com/?_wv=1027&k=VXp6plBD)
+
+LinotaOfficia(Bot 开发): [邀请链接](https://qm.qq.com/q/Prd2X8FcE6)
+Graia QQ 交流群(有关 Graia 本身及框架本体开发，选择性添加): [邀请链接](https://jq.qq.com/?_wv=1027&k=VXp6plBD)
 
 > QQ 群不定时清除不活跃成员, 请自行重新申请入群.
 
