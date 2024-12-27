@@ -138,7 +138,6 @@ pdm add graia-saya
 
 ```python
 # main.py
-# src/main.py
 from cocotst.app import Cocotst
 from cocotst.network.model import WebHookConfig
 from creart import it
