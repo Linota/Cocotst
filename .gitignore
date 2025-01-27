@@ -7,8 +7,7 @@ __pycache__/
 *.so
 
 # Test files
-test.jpg
-test.silk
+test.*
 fastquick.py
 
 # VS Code

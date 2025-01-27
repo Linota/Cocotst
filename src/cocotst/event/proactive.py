@@ -3,8 +3,8 @@ from typing import Optional
 from graia.broadcast.entities.dispatcher import BaseDispatcher
 from graia.broadcast.interfaces.dispatcher import DispatcherInterface
 
-from cocotst.network.model import CocotstBaseEvent, Target
-
+from cocotst.network.model.target import Target
+from cocotst.event import CocotstBaseEvent
 
 class GroupAllowBotProactiveMessage(CocotstBaseEvent):
     """群打开消息推送"""

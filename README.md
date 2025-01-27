@@ -20,6 +20,14 @@ _Easily to code qqoffcial bot. ._
 
 </div>
 
+<div align="center">
+
+## 🚨 公告 🚨
+**请注意：本项目仍在开发中，可能会有重大变更。**
+
+### 暂无公告
+</div>
+
 **本项目仅支持 Webhook 事件推送**
 
 **请自行反向代理 Webhook 服务器并添加 HTTPS**
@@ -58,50 +66,68 @@ Cocotst 依赖于 [`GraiaProject`](https://github.com/GraiaProject)
 - ✅ 机器人在群中被开关消息推送事件
 - ✅ 机器人加入移除 C2C 消息列表事件
 - ✅ 机器人在 C2C 中被开关消息推送事件
+- ✅ 撤回消息
 
 ### TODO
 
 以下特性有可能逐渐被添加
 
 - ⭕ Alconna
-- ⭕ 频道支持
 - ⭕ Markdown 消息支持
-- ⭕ 消息撤回
 - ⭕ Keyboard 消息支持
 - ⭕ ~~ARK, Embed 消息支持~~
+
+### OOPS
+
+- ❌ 停止频道支持
 
 ## 结构目录
 
 ```
 Cocotst
-├── docs 文档
-├── LICENSE 许可证
-├── mkdocs.yml mkdocs 配置文件
-├── pdm.lock 依赖锁
-├── pyproject.toml 项目配置文件
-├── README.md 说明文档
-└── src 源码
-   └── cocotst 
-        ├── all.py 方便引用所有模块
-        ├── app.py Tencent API 封装
-        ├── config.py 各类配置文件
-        ├── dispatcher.py 
-        ├── event 事件模块
-        │   ├── builtin.py 内置事件
-        │   ├── message.py 消息事件
-        │   ├── receive.py 开关推送事件
-        │   └── robot.py Bot 位置事件
-        ├── message 消息模块
-        │   ├── element.py 消息元素
-        │   ├── parser
-        │   │   └── base.py 基础消息解析器
-        ├── network 网络模块
-        │   ├── model.py 数据模型
-        │   ├── services.py 服务模型
-        │   ├── sign.py 签名模块
-        │   └── webhook.py Webhook 模块，负责接收 Tencent 发送的事件。处理后分发给各个事件处理器
-        ├── services.py 服务模块
-        └── utils.py 工具模块
+├── docs/                       # 文档
+├── src
+│   └── cocotst
+│       ├── event
+│       │   ├── builtin.py      # 内置事件
+│       │   ├── message.py      # 消息事件
+│       │   ├── proactive.py    # 主动消息控制事件
+│       │   └── robot.py        # Bot位置事件
+│       ├── config
+│       │   ├── webserver.py    # WebHook配置
+│       │   └── debug.py        # 调试配置
+│       ├── message
+│       │   ├── element.py      # 消息元素
+│       │   └── parser
+│       │       └── base.py     # 基础消息解析器
+│       ├── network
+│       │   ├── model
+│       │   │   ├── event_element
+│       │   │   │   ├── guild.py # 频道消息元素
+│       │   │   │   ├── normal.py # 普通消息元素
+│       │   │   │   └── __init__.py # Attachment 消息元素内置
+│       │   │   ├── http_api.py # HTTP API 模型
+│       │   │   ├── target.py   # 目标模型
+│       │   │   └── webhook.py  # Webhook 模型
+│       │   ├── services.py     # 服务模型
+│       │   ├── sign.py         # 签名模块
+│       │   ├── webhook.py      # Webhook模块 
+│       │   └── qqapi.py        # Tencent API封装
+│       ├── utils
+│       │   ├── debug
+│       │   │   └── __init__.py # 调试工具
+│       │   ├── guild.py
+│       │   └── __init__.py
+│       ├── all.py              # 方便引用所有模块
+│       ├── app.py              # APP模块
+│       ├── dispatcher.py       # 事件分发器
+│       └── services.py         # 服务模块
+├── tests/                      # 测试目录
+├── LICENSE                     # 许可证
+├── mkdocs.yml                  # mkdocs配置文件
+├── pdm.lock                    # 依赖锁
+├── pyproject.toml              # 项目配置文件
+└── README.md                   # 说明文档
 ```
     
 
@@ -109,9 +135,9 @@ Cocotst
 
 ```python
 from cocotst.event.message import GroupMessage
-from cocotst.network.model import Target
+from cocotst.network.model.target import Target
 from cocotst.app import Cocotst
-from cocotst.network.model import WebHookConfig
+from cocotst.config.webserver import WebHookConfig
 from cocotst.message.parser.base import QCommandMatcher
 
 app = Cocotst(
@@ -121,9 +147,11 @@ app = Cocotst(
     is_sand_box=True,
 )
 
+
 @app.broadcast.receiver(GroupMessage, decorators=[QCommandMatcher("ping")])
 async def catch(app: Cocotst, target: Target):
     await app.send_group_message(target, content="pong!")
+
 
 if __name__ == "__main__":
     app.launch_blocking()

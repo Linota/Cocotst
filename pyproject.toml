@@ -1,6 +1,6 @@
 [project]
 name = "Cocotst"
-version = "0.0.5"
+version = "0.0.6"
 description = "Easily to code qqoffcial bot."
 authors = [
     {name = "Sibuxiangx", email = "sibuxiang@proton.me"},
@@ -38,6 +38,9 @@ docs = [
     "mkdocs-gen-files>=0.5.0",
     "mkdocs-literate-nav>=0.6.1",
     "mkdocs-section-index>=0.3.9",
+]
+voice = [
+    "graiax-silkcoder[ffmpeg]>=0.3.6",
 ]
 [build-system]
 requires = ["pdm-backend"]

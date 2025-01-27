@@ -9,7 +9,7 @@ from graia.broadcast.exceptions import ExecutionStop
 from graia.broadcast.interfaces.decorator import DecoratorInterface
 from graia.broadcast.interfaces.dispatcher import DispatcherInterface
 
-from cocotst.network.model import Content
+from cocotst.network.model.webhook import Content
 
 
 class ContentDecorator(abc.ABC, Decorator, Derive[Content]):
@@ -89,7 +89,7 @@ class QCommandMatcher(ContentDecorator):
         Args:
             command (str): 要匹配的命令，只需要提供命令本体不用处理 '/' ' '
         """
-        commands = [f" /{command}", f"/{command}"]
+        commands = [f" /{command}", f"/{command}", f" {command}", command]
         self.commands: List[str] = commands
 
     async def __call__(self, content: Content, _) -> Optional[Content]:

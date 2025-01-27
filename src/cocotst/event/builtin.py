@@ -3,8 +3,8 @@ from typing import Optional
 from graia.broadcast.entities.dispatcher import BaseDispatcher
 from graia.broadcast.interfaces.dispatcher import DispatcherInterface
 
-from cocotst.config import DebugConfig
-from cocotst.network.model import CocotstBaseEvent
+from cocotst.config.debug import DebugConfig
+from cocotst.event import CocotstBaseEvent
 
 
 class DebugFlagSetup(CocotstBaseEvent):

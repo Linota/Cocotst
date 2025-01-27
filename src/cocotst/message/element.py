@@ -2,6 +2,9 @@ from typing import Dict, List, Literal, Optional
 
 import aiofiles
 from pydantic import BaseModel
+from launart import Launart
+
+from cocotst.network.services import AiohttpClientSessionService
 
 
 class Element(BaseModel):
@@ -17,16 +20,22 @@ class MediaElement(Element):
     """媒体资源路径"""
     type: Literal["image", "video", "voice", 4]
     """媒体资源类型"""
+    url: Optional[str] = None
+    """媒体资源链接"""
 
-    def __init__(self, data: Optional[bytes] = None, path: Optional[str] = None):
+    def __init__(self, data: Optional[bytes] = None, path: Optional[str] = None, url: Optional[str] = None):
         try:
-            assert data or path
+            assert data or path or url
         except AssertionError:
-            raise ValueError("data 和 path 不能同时为空")
-        super().__init__(data=data, path=path)
+            raise ValueError("data ,path, url 不能同时为空")
+        super().__init__(data=data, path=path, url=url)
 
     async def as_data_bytes(self):
         """将媒体资源转换为 bytes"""
+        if self.url:
+            session = Launart.current().get_component(AiohttpClientSessionService).session
+            async with session.get(self.url) as response:
+                return await response.read()
         if self.data:
             return self.data
         else:

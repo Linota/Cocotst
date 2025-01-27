@@ -1,11 +1,6 @@
-import base64
 import random
-from os import PathLike
-from typing import Literal, Optional, Union
+from typing import Optional, Union, overload
 
-import aiofiles
-from aiohttp import ClientSession
-from aiohttp.connector import TCPConnector
 from creart import it
 from graia.broadcast import Broadcast
 from graia.broadcast.entities.dispatcher import BaseDispatcher
@@ -18,44 +13,27 @@ from starlette.routing import Route
 from starlette.staticfiles import StaticFiles
 from uvicorn.config import Config
 
-from cocotst.config import DebugConfig
+from cocotst.config.debug import DebugConfig
 from cocotst.event.builtin import DebugFlagSetup
 from cocotst.event.message import C2CMessage, GroupMessage, MessageEvent, MessageSent
-from cocotst.message.element import Ark, Element, Embed, Markdown, MediaElement
-from cocotst.network.model import (
-    FileServerConfig,
-    OpenAPIErrorCallback,
-    Target,
-    WebHookConfig,
-)
-from cocotst.network.services import QAuth, UvicornService
+from cocotst.message.element import Element, MediaElement
+from cocotst.config.webserver import FileServerConfig, WebHookConfig
+from cocotst.network.model.target import Target
+from cocotst.network.model.http_api import OpenAPIErrorCallback
+from cocotst.network.services import AiohttpClientSessionService, QAuth, UvicornService
 from cocotst.network.webhook import postevent
 from cocotst.utils import get_msg_type
+from cocotst.network.qqapi import QQAPI, MessageRecallError, MessageTarget
+from cocotst.utils.debug import print_debug_tree
 
 install()
 
 
 class Cocotst:
-    """Cocotst 实例。"""
-
-    appid: str
-    """在开放平台管理端上获得。"""
-    clientSecret: str
-    """在开放平台管理端上获得。"""
-    mgr: Launart
-    """Launart 实例。默认自动创建。"""
-    broadcast: Broadcast
-    """Broadcast 实例."""
-    webhook_config: WebHookConfig
-    """WebHook 配置。请自行反向代理 WebHook。"""
-    file_server_config: FileServerConfig
-    """文件服务器配置。"""
-    is_sand_box: bool
-    """是否使用沙箱模式。"""
-    random_msgseq: bool = True
-    """是否随机生成 msg_seq。这决定了是否可以重复回复相同的消息。"""
-    debug: Optional[DebugConfig] = None
-    """调试配置。"""
+    """
+    Cocotst 实例，集成了 QQ 机器人的核心功能。
+    该类作为主要接口，统筹管理消息处理、事件分发和网络请求。
+    """
 
     def __init__(
         self,
@@ -68,17 +46,18 @@ class Cocotst:
         random_msgseq: bool = True,
         debug: Optional[DebugConfig] = None,
     ):
-        """初始化 Cocotst 实例。
+        """
+        初始化 Cocotst 实例。
 
         Args:
-            appid (str): 在开放平台管理端上获得。
-            clientSecret (str): 在开放平台管理端上获得。
-            mgr (Launart, optional): Launart 实例。默认自动创建。
-            webhook_config (Optional[WebHookConfig], optional): WebHook 配置。请自行反向代理 WebHook。
-            file_server_config (Optional[FileServerConfig], optional): 文件服务器配置。
-            is_sand_box (bool, optional): 是否使用沙箱模式。
-            random_msgseq (bool, optional): 是否随机生成 msg_seq。这决定了是否可以重复回复相同的消息。
-            debug (Optional[DebugConfig], optional): 调试配置。
+            appid: QQ开放平台的应用ID
+            clientSecret: QQ开放平台的应用密钥
+            mgr: Launart 实例，用于管理服务生命周期
+            webhook_config: WebHook 配置
+            file_server_config: 文件服务器配置
+            is_sand_box: 是否使用沙箱环境
+            random_msgseq: 是否随机生成消息序号
+            debug: 调试配置
         """
         self.appid = appid
         self.clientSecret = clientSecret
@@ -89,117 +68,29 @@ class Cocotst:
         self.is_sand_box = is_sand_box
         self.random_msgseq = random_msgseq
         self.debug = debug
+        self._api: Optional[QQAPI] = None  # 初始化时先设为 None
+
+        # 设置调试模式
         if debug:
-            logger.debug("[Cocotst] DebugMode: True")
-            logger.debug("[Cocotst] DebugConfig: {}", debug)
+            logger.warning("[Cocotst] 设置调试模式", style="bold yellow")
+            logger.warning(f"[Cocotst] 调试配置: \n{print_debug_tree(debug)}", style="bold yellow")
             self.broadcast.postEvent(DebugFlagSetup(debug_config=debug))
-            self.verify_ssl = debug.api_call.ssl_verify
 
-    async def common_api(self, path: str, method: str, **kwargs) -> Union[dict, OpenAPIErrorCallback]:
-        connector = (
-            TCPConnector(verify_ssl=self.debug.api_call.ssl_verify)
-            if (self.debug and self.verify_ssl)
-            else None
-        )
-        async with ClientSession(connector=connector) as session:
-            async with session.request(
-                method,
-                (
-                    f"https://api.sgroup.qq.com{path}"
-                    if not self.is_sand_box
-                    else f"https://sandbox.api.sgroup.qq.com{path}"
-                ),
-                headers={"Authorization": f"QQBot {self.mgr.get_component(QAuth).access_token.access_token}"},
-                **kwargs,
-            ) as resp:
-                rt = await resp.json()
-                if "code" in rt:
-                    cb = OpenAPIErrorCallback(**rt)
-                    logger.error("[App.commonApi] OpenAPIErrorCallback: {}", cb, style="bold red")
-                    return cb
-                return rt
-
-    async def basic_send_group_message(
-        self,
-        msg_type: Literal[0, 2, 3, 4, 7],
-        group_openid: str,
-        markdown: Optional[Markdown] = None,  # 待完成
-        keyboard: Optional[Embed] = None,  # 待完成
-        ark: Optional[Ark] = None,
-        message_reference: Optional[object] = None,
-        event_id: Optional[str] = None,
-        msg_id: Optional[str] = None,
-        msg_seq: Optional[int] = None,
-        content: str = " ",
-        file: Optional[Union[PathLike, bytes, None]] = None,
-        file_type: Optional[Literal["image", "video", "voice", 4]] = None,
-    ) -> Union[MessageSent, OpenAPIErrorCallback]:
-        """发送群消息
-
-        Args:
-            content: 消息内容
-            msg_type: 消息类型 消息类型：0 是文本，2 是 markdown， 3 ark，4 embed，7 media 富媒体
-            group_openid: 群组 openid，未填写时且非主动发送时，将会自动获取
-            markdown: markdown 内容
-            keyboard: 键盘内容
-            ark: ark 内容
-            message_reference: 引用消息
-            event_id: 前置收到的事件 ID，用于发送被动消息，支持事件："INTERACTION_CREATE"、"C2C_MSG_RECEIVE"、"FRIEND_ADD"
-            msg_id: 前置收到的用户发送过来的消息 ID，用于发送被动（回复）消息，未填写时且非主动发送时，将会自动获取
-            msg_seq: 回复消息的序号，与 msg_id 联合使用，避免相同消息id回复重复发送，不填默认是1。相同的 msg_id + msg_seq 重复发送会失败。
-            file: 文件路径或者文件二进制数据
-            file_type: 文件类型
+    @property
+    def api(self) -> QQAPI:
         """
-        if file or file_type:
-            try:
-                assert file and file_type
-            except AssertionError:
-                logger.error("[App.basicSendGroupMessage] file 和 file_type 必须同时存在")
-                raise ValueError("file 和 file_type 必须同时存在")
-            _file_type = ["image", "video", "voice", 4].index(file_type)
-            media = await self.post_group_file(
-                group_openid,
-                _file_type + 1,
-                file_path=file if isinstance(file, PathLike) else None,
-                file_data=file if not isinstance(file, PathLike) else None,
+        获取 QQAPI 实例。如果尚未初始化，则创建新实例。
+        这种延迟初始化的方式确保在获取 access_token 后才创建 API 实例。
+        """
+        if self._api is None:
+            self._api = QQAPI(
+                app_id=self.appid,
+                client_secret=self.clientSecret,
+                access_token=self.mgr.get_component(QAuth).access_token.access_token,
+                is_sandbox=self.is_sand_box,
+                debug_config=self.debug,
             )
-            msg_type = 7
-        else:
-            media = None
-        """
-        if markdown:
-            msg_type = 2
-        if ark:
-            msg_type = 3
-        if embed:
-            msg_type = 4
-        """
-
-        resp = await self.common_api(
-            f"/v2/groups/{group_openid}/messages",
-            "POST",
-            json={
-                "content": content,
-                "msg_type": msg_type,
-                "markdown": markdown,
-                "keyboard": keyboard,
-                "media": media,
-                "ark": ark,
-                "message_reference": message_reference,
-                "event_id": event_id,
-                "msg_id": msg_id,
-                "msg_seq": random.randint(1, 100) if self.random_msgseq else msg_seq,
-                "media": media,
-            },
-        )
-        if isinstance(resp, OpenAPIErrorCallback):
-            return resp
-        ms = MessageSent(**resp)
-        logger.info(
-            f"[Group] MessageSent: {ms.id} >> <BOT> --{content}-{file_type}--> <Group:{group_openid}> >>",
-            style="bold green",
-        )
-        return ms
+        return self._api
 
     async def send_group_message(
         self,
@@ -208,108 +99,45 @@ class Cocotst:
         element: Optional[Element] = None,
         proactive: bool = False,
     ) -> Union[MessageSent, OpenAPIErrorCallback]:
-        """发送群消息
+        """
+        发送群消息的统一接口。
 
         Args:
-            target (Target): 目标,非主动消息时，需传入前置消息 ID 或者事件 ID.
-            content (Content): 内容,仅在文本消息或者文图消息时有效，仅发送图片时为空格
-            element (Element): 消息元素
-            proactive (bool, optional): 是否主动发送. 将会占用主动发送次数。
+            target: 消息目标信息
+            content: 消息内容
+            element: 消息元素（如图片、视频等）
+            proactive: 是否主动发送
 
+        Returns:
+            消息发送结果
         """
-        try:
-            assert (target.target_id or target.event_id) and not proactive
-        except AssertionError:
-            logger.error("[App.sendGroupMsg] 发送被动消息时必须提供 target.target_id 或 target.event_id ")
-            raise ValueError("发送被动消息时必须提供 target.target_id 或 target.event_id ")
+        # 验证消息发送条件
+        if not proactive and not (target.target_id or target.event_id):
+            logger.error("[Cocotst.sendGroupMsg] 发送被动消息时必须提供 target.target_id 或 target.event_id")
+            raise ValueError("发送被动消息时必须提供 target.target_id 或 target.event_id")
 
-        resp = await self.basic_send_group_message(
-            msg_type=get_msg_type(content, element),
-            group_openid=target.target_unit,
+        # 准备消息数据
+        message_data = await self.api.prepare_message_data(
             content=content,
-            file=(await element.as_data_bytes() if isinstance(element, MediaElement) else None),
-            file_type=element.type if isinstance(element, MediaElement) else None,
+            element=element,
+            msg_type=get_msg_type(content, element),
             event_id=target.event_id,
             msg_id=target.target_id,
-            markdown=element if isinstance(element, Markdown) else None,
-            ark=element if isinstance(element, Ark) else None,
-            keyboard=element if isinstance(element, Embed) else None,
+            msg_seq=random.randint(1, 100) if self.random_msgseq else None,
         )
-        return resp
 
-    async def basic_send_c2c_message(
-        self,
-        msg_type: Literal[0, 2, 3, 4, 7],
-        openid: str,
-        markdown: Optional[Markdown] = None,
-        keyboard: Optional[Embed] = None,
-        ark: Optional[Ark] = None,
-        message_reference: Optional[object] = None,
-        event_id: Optional[str] = None,
-        msg_id: Optional[str] = None,
-        msg_seq: Optional[int] = None,
-        content: str = " ",
-        file: Optional[Union[PathLike, bytes, None]] = None,
-        file_type: Optional[Literal["image", "video", "voice", 4]] = None,
-    ) -> Union[MessageSent, OpenAPIErrorCallback]:
-        """发送私聊消息
-
-        Args:
-
-
-            content: 消息内容
-            msg_type: 消息类型 消息类型：0 是文本，2 是 markdown， 3 ark，4 embed，7 media 富媒体
-            openid: 用户 openid
-            markdown: markdown 内容
-            keyboard: 键盘内容
-            ark: ark 内容
-            message_reference: 引用消息
-            event_id: 前置收到的事件 ID，用于发送被动消息，支持事件："INTERACTION_CREATE"、"C2C_MSG_RECEIVE"、"FRIEND_ADD"
-            msg_id: 前置收到的用户发送过来的消息 ID，用于发送被动（回复）消息，未填写时且非主动发送时，将会自动获取
-            msg_seq: 回复消息的序号，与 msg_id 联合使用，避免相同消息id回复重复发送，不填默认是1。相同的 msg_id + msg_seq 重复发送会失败.
-            file: 文件路径或者文件二进制数据
-            file_type: 文件类型
-        """
-        if file or file_type:
-            try:
-                assert file and file_type
-            except AssertionError:
-                logger.error("[App.basicSendC2CMessage] file 和 file_type 必须同时存在")
-                raise ValueError("file 和 file_type 必须同时存在")
-            _file_type = ["image", "video", "voice", 4].index(file_type)
-            media = await self.post_c2c_file(
-                openid,
-                _file_type + 1,
-                file_path=file if isinstance(file, PathLike) else None,
-                file_data=file if not isinstance(file, PathLike) else None,
+        # 发送消息
+        try:
+            response = await self.api.send_message(
+                target_type="group",
+                target_id=target.target_unit,
+                message_data=message_data,
+                media_element=element if isinstance(element, MediaElement) else None,
             )
-
-        else:
-            media = None
-        resp = await self.common_api(
-            f"/v2/users/{openid}/messages",
-            "POST",
-            json={
-                "content": content,
-                "msg_type": msg_type,
-                "markdown": markdown,
-                "keyboard": keyboard,
-                "media": media,
-                "ark": ark,
-                "message_reference": message_reference,
-                "event_id": event_id,
-                "msg_id": msg_id,
-                "msg_seq": random.randint(1, 100) if self.random_msgseq else msg_seq,
-            },
-        )
-        if isinstance(resp, OpenAPIErrorCallback):
-            return resp
-        ms = MessageSent(**resp)
-        logger.info(
-            f"[C2C] MessageSent: {ms.id} >> <BOT> --{content}-{file_type}--> <Client:{openid}> >>",
-            style="bold green",
-        )
-        return ms
+            return MessageSent(**response)
+        except Exception as e:
+            logger.error(f"[Cocotst.sendGroupMsg] 发送消息失败: {e}")
+            raise
 
     async def send_c2c_message(
         self,
@@ -318,32 +146,42 @@ class Cocotst:
         element: Optional[Element] = None,
         proactive: bool = False,
     ) -> Union[MessageSent, OpenAPIErrorCallback]:
-        """发送私聊消息
+        """
+        发送私聊消息的统一接口。
 
         Args:
+            target: 消息目标信息
+            content: 消息内容
+            element: 消息元素（如图片、视频等）
+            proactive: 是否主动发送
 
-            target (Target): 目标,非主动消息时，需传入前置消息 ID 或者事件 ID.
-            content (Content): 内容,仅在文本消息或者文图消息时有效，仅发送图片时为空格
-            element (Element): 消息元素
-            proactive (bool, optional): 是否主动发送. 将会占用主动发送次数。
+        Returns:
+            消息发送结果
         """
-        try:
-            assert (target.target_id or target.event_id) and not proactive
-        except AssertionError:
-            logger.error("[App.sendC2CMsg] 发送被动消息时必须提供 target.target_id 或 target.event_id ")
-            raise ValueError("发送被动消息时必须提供 target.target_id 或 target.event_id ")
-        return await self.basic_send_c2c_message(
-            msg_type=get_msg_type(content, element),
-            openid=target.target_unit,
+        if not proactive and not (target.target_id or target.event_id):
+            logger.error("[Cocotst.sendC2CMsg] 发送被动消息时必须提供 target.target_id 或 target.event_id")
+            raise ValueError("发送被动消息时必须提供 target.target_id 或 target.event_id")
+
+        message_data = await self.api.prepare_message_data(
             content=content,
-            file=(await element.as_data_bytes() if isinstance(element, MediaElement) else None),
-            file_type=element.type if isinstance(element, MediaElement) else None,
+            element=element,
+            msg_type=get_msg_type(content, element),
             event_id=target.event_id,
             msg_id=target.target_id,
-            markdown=element if isinstance(element, Markdown) else None,
-            ark=element if isinstance(element, Ark) else None,
-            keyboard=element if isinstance(element, Embed) else None,
+            msg_seq=random.randint(1, 100) if self.random_msgseq else None,
         )
+
+        try:
+            response = await self.api.send_message(
+                target_type="c2c",
+                target_id=target.target_unit,
+                message_data=message_data,
+                media_element=element if isinstance(element, MediaElement) else None,
+            )
+            return MessageSent(**response)
+        except Exception as e:
+            logger.error(f"[Cocotst.sendC2CMsg] 发送消息失败: {e}")
+            raise
 
     async def send_message(
         self,
@@ -352,79 +190,238 @@ class Cocotst:
         element: Optional[Element] = None,
         proactive: bool = False,
     ) -> Union[MessageSent, OpenAPIErrorCallback]:
-        """发送消息
+        """
+        统一的消息发送接口，根据消息类型自动选择发送方式。
 
         Args:
+            target: 消息事件
+            content: 消息内容
+            element: 消息元素
+            proactive: 是否主动发送
 
-                target (Target): 目标,非主动消息时，需传入前置事件
-                content (Content): 内容,仅在文本消息或者文图消息时有效，仅发送图片时为空格
-                element (Element): 消息元素
-                proactive (bool, optional): 是否主动发送. 将会占用主动发送次数。
+        Returns:
+            消息发送结果
         """
         if isinstance(target, C2CMessage):
             return await self.send_c2c_message(target.target, content, element, proactive)
         if isinstance(target, GroupMessage):
             return await self.send_group_message(target.target, content, element, proactive)
+        raise ValueError(f"Unsupported message type: {type(target)}")
 
-    async def post_group_file(
-        self,
-        group_openid: str,
-        file_type: Literal[1, 2, 3, 4],
-        url: Optional[str] = "",
-        srv_send_msg: bool = False,
-        file_data: Optional[object] = None,
-        file_path: Optional[PathLike] = None,
-    ) -> str:
-        """上传群文件，上传成功后返回文件 ID，用于发送图片等操作"""
-        try:
-            assert url or file_data or file_path
-        except AssertionError:
-            logger.error("[App.postGroupFile] url, file_data, file_path 三者必须有一个")
-            raise ValueError("url, file_data, file_path 三者必须有一个")
-        if file_path:
-            async with aiofiles.open(file_path, "rb") as f:
-                file_data = await f.read()
-        file_data = base64.b64encode(file_data).decode()
-        return await self.common_api(
-            f"/v2/groups/{group_openid}/files",
-            "POST",
-            json={
-                "file_type": file_type,
-                "url": url,
-                "srv_send_msg": srv_send_msg,
-                "file_data": file_data,
-            },
-        )
+    async def _get_target_id(self, target: Union[str, Target, MessageEvent]) -> str:
+        """
+        从不同类型的目标参数中提取目标ID。这个辅助方法用于统一处理不同形式的目标参数。
 
-    async def post_c2c_file(
-        self,
-        openid: str,
-        file_type: Literal[1, 2, 3, 4],
-        url: Optional[str] = "",
-        srv_send_msg: bool = False,
-        file_data: Optional[object] = None,
-        file_path: Optional[PathLike] = None,
-    ) -> str:
-        """上传私聊文件，上传成功后返回文件 ID，用于发送图片等操作"""
+        参数:
+            target: 可以是目标ID字符串、Target对象或MessageEvent对象
+
+        返回:
+            str: 提取出的目标ID
+        """
+        if isinstance(target, str):
+            return target
+        elif isinstance(target, MessageEvent):
+            return target.target.target_unit
+        elif isinstance(target, Target):
+            return target.target_unit
+        else:
+            raise ValueError(f"不支持的目标类型: {type(target)}")
+
+    @overload
+    async def recall_group_message(self, group_openid: str, message_id: str) -> bool: ...
+
+    @overload
+    async def recall_group_message(self, group_openid: Target, message_id: str) -> bool: ...
+
+    @overload
+    async def recall_group_message(self, group_openid: GroupMessage, message_id: str) -> bool: ...
+
+    async def recall_group_message(
+        self, group_openid: Union[str, Target, GroupMessage], message_id: str
+    ) -> bool:
+        """
+        撤回群聊消息。支持多种方式指定目标群聊。
+
+        这个方法支持三种方式来指定目标群聊：
+        1. 直接使用群的openid字符串
+        2. 使用Target对象
+        3. 使用GroupMessage事件对象
+
+        群聊消息撤回的限制：
+        1. 只能撤回2分钟内发送的消息
+        2. 机器人只能撤回自己发送的消息
+        3. 管理员和群主可以撤回普通成员的消息
+
+        参数:
+            group_openid: 群聊标识，可以是openid字符串、Target对象或GroupMessage对象
+            message_id: 需要撤回的消息ID
+
+        返回:
+            bool: 撤回操作是否成功
+
+        示例:
+            await bot.recall_group_message("group123", "msg456")
+            await bot.recall_group_message(target_obj, "msg456")
+            await bot.recall_group_message(group_message_event, "msg456")
+        """
         try:
-            assert url or file_data or file_path
-        except AssertionError:
-            logger.error("[App.postC2CFile] url, file_data, file_path 三者必须有一个")
-            raise ValueError("url, file_data, file_path 三者必须有一个")
-        if file_path:
-            async with aiofiles.open(file_path, "rb") as f:
-                file_data = await f.read()
-        file_data = base64.b64encode(file_data).decode()
-        return await self.common_api(
-            f"/v2/users/{openid}/files",
-            "POST",
-            json={
-                "file_type": file_type,
-                "url": url,
-                "srv_send_msg": srv_send_msg,
-                "file_data": file_data,
-            },
-        )
+            target_id = await self._get_target_id(group_openid)
+            return await self.api.recall_message(
+                target_type=MessageTarget.GROUP, target_id=target_id, message_id=message_id
+            )
+        except MessageRecallError as e:
+            logger.error(f"[Cocotst.recallGroupMessage] 群聊消息撤回失败: {e}")
+            return False
+        except ValueError as e:
+            logger.error(f"[Cocotst.recallGroupMessage] 参数错误: {e}")
+            return False
+
+    @overload
+    async def recall_c2c_message(self, openid: str, message_id: str) -> bool: ...
+
+    @overload
+    async def recall_c2c_message(self, openid: Target, message_id: str) -> bool: ...
+
+    @overload
+    async def recall_c2c_message(self, openid: C2CMessage, message_id: str) -> bool: ...
+
+    async def recall_c2c_message(self, openid: Union[str, Target, C2CMessage], message_id: str) -> bool:
+        """
+        撤回私聊消息。支持多种方式指定目标用户。
+
+        这个方法支持三种方式来指定目标用户：
+        1. 直接使用用户的openid字符串
+        2. 使用Target对象
+        3. 使用C2CMessage事件对象
+
+        私聊消息撤回的限制：
+        1. 只能撤回2分钟内发送的消息
+        2. 机器人只能撤回自己发送的消息
+
+        参数:
+            openid: 用户标识，可以是openid字符串、Target对象或C2CMessage对象
+            message_id: 需要撤回的消息ID
+
+        返回:
+            bool: 撤回操作是否成功
+
+        示例:
+            await bot.recall_c2c_message("user123", "msg456")
+            await bot.recall_c2c_message(target_obj, "msg456")
+            await bot.recall_c2c_message(c2c_message_event, "msg456")
+        """
+        try:
+            target_id = await self._get_target_id(openid)
+            return await self.api.recall_message(
+                target_type=MessageTarget.C2C, target_id=target_id, message_id=message_id
+            )
+        except MessageRecallError as e:
+            logger.error(f"[Cocotst.recallC2CMessage] 私聊消息撤回失败: {e}")
+            return False
+        except ValueError as e:
+            logger.error(f"[Cocotst.recallC2CMessage] 参数错误: {e}")
+            return False
+
+    @overload
+    async def recall_channel_message(
+        self, channel_id: str, message_id: str, hide_tip: bool = False
+    ) -> bool: ...
+
+    @overload
+    async def recall_channel_message(
+        self, channel_id: Target, message_id: str, hide_tip: bool = False
+    ) -> bool: ...
+
+    async def recall_channel_message(
+        self, channel_id: Union[str, Target], message_id: str, hide_tip: bool = False
+    ) -> bool:
+        """
+        撤回子频道消息。支持使用ID字符串或Target对象指定目标子频道。
+
+        这个方法支持两种方式来指定目标子频道：
+        1. 直接使用子频道ID字符串
+        2. 使用Target对象
+
+        子频道消息撤回的特点：
+        1. 管理员可以撤回普通成员的消息
+        2. 频道主可以撤回所有人的消息
+        3. 普通成员只能撤回自己的消息
+
+        参数:
+            channel_id: 子频道标识，可以是ID字符串或Target对象
+            message_id: 需要撤回的消息ID
+            hide_tip: 是否隐藏撤回提示
+
+        返回:
+            bool: 撤回操作是否成功
+
+        注意:
+            此功能仅对私域机器人可用
+        """
+        try:
+            target_id = channel_id if isinstance(channel_id, str) else getattr(channel_id, "channel_id", None)
+            if target_id is None:
+                raise ValueError("无法从提供的参数中获取channel_id")
+
+            return await self.api.recall_message(
+                target_type=MessageTarget.CHANNEL,
+                target_id=target_id,
+                message_id=message_id,
+                hide_tip=hide_tip,
+            )
+        except MessageRecallError as e:
+            logger.error(f"[Cocotst.recallChannelMessage] 子频道消息撤回失败: {e}")
+            return False
+        except ValueError as e:
+            logger.error(f"[Cocotst.recallChannelMessage] 参数错误: {e}")
+            return False
+
+    @overload
+    async def recall_dms_message(self, guild_id: str, message_id: str, hide_tip: bool = False) -> bool: ...
+
+    @overload
+    async def recall_dms_message(self, guild_id: Target, message_id: str, hide_tip: bool = False) -> bool: ...
+
+    async def recall_dms_message(
+        self, guild_id: Union[str, Target], message_id: str, hide_tip: bool = False
+    ) -> bool:
+        """
+        撤回频道私信消息。支持使用ID字符串或Target对象指定目标频道。
+
+        这个方法支持两种方式来指定目标频道：
+        1. 直接使用guild_id字符串
+        2. 使用Target对象
+
+        频道私信消息撤回的特点：
+        1. 机器人只能撤回自己发送的私信消息
+        2. 可以选择是否显示撤回提示
+        3. 需要私域机器人权限
+
+        参数:
+            guild_id: 频道标识，可以是ID字符串或Target对象
+            message_id: 需要撤回的消息ID
+            hide_tip: 是否隐藏撤回提示
+
+        返回:
+            bool: 撤回操作是否成功
+
+        注意:
+            此功能仅对私域机器人可用
+        """
+        try:
+            target_id = guild_id if isinstance(guild_id, str) else getattr(guild_id, "guild_id", None)
+            if target_id is None:
+                raise ValueError("无法从提供的参数中获取guild_id")
+
+            return await self.api.recall_message(
+                target_type=MessageTarget.DMS, target_id=target_id, message_id=message_id, hide_tip=hide_tip
+            )
+        except MessageRecallError as e:
+            logger.error(f"[Cocotst.recallDMSMessage] 频道私信消息撤回失败: {e}")
+            return False
+        except ValueError as e:
+            logger.error(f"[Cocotst.recallDMSMessage] 参数错误: {e}")
+            return False
 
     @classmethod
     def current(cls) -> "Cocotst":
@@ -432,20 +429,30 @@ class Cocotst:
         return it(Launart).get_component(App).app
 
     def launch_blocking(self):
+        """
+        启动 Cocotst 实例，设置必要的服务和组件。
+        """
+        # 创建 ASGI 应用
         asgiapp = Starlette(
             routes=[
                 Route(self.webhook_config.postevent, postevent, methods=["POST"]),
             ]
         )
+        # 添加 Aiohttp 服务组件
+        self.mgr.add_component(
+            AiohttpClientSessionService()
+        )
+        # 添加认证组件
         self.mgr.add_component(QAuth(self.appid, self.clientSecret))
-        (
+
+        # 配置文件服务器
+        if self.file_server_config.localpath:
             asgiapp.mount(
                 self.file_server_config.remote_url,
                 app=StaticFiles(directory=self.file_server_config.localpath),
             )
-            if self.file_server_config.localpath
-            else None
-        )
+
+        # 添加 Uvicorn 服务
         self.mgr.add_component(
             UvicornService(
                 config=Config(
@@ -455,11 +462,17 @@ class Cocotst:
                 )
             )
         )
+
+        # 添加应用组件并启动
         self.mgr.add_component(App(self))
         self.mgr.launch_blocking()
 
 
+# 以下是辅助类的实现
+
+
 class CocotstDispatcher(BaseDispatcher):
+    """Cocotst 的调度器实现"""
 
     @staticmethod
     async def catch(interface: DispatcherInterface):
@@ -469,6 +482,8 @@ class CocotstDispatcher(BaseDispatcher):
 
 
 class ApplicationReady:
+    """应用就绪事件类"""
+
     class Dispatcher(BaseDispatcher):
         @staticmethod
         async def catch(interface: DispatcherInterface):
@@ -476,6 +491,8 @@ class ApplicationReady:
 
 
 class App(Service):
+    """Cocotst 应用服务类"""
+
     id = "Cocotst"
     app: Cocotst
 
@@ -493,10 +510,10 @@ class App(Service):
 
     async def launch(self, manager):
         async with self.stage("preparing"):
-            logger.info("[APP] Inject Dispatchers", style="blue")
+            logger.info("[APP] Inject Dispatchers", style="bold blue")
             broadcast = it(Broadcast)
             broadcast.finale_dispatchers.append(CocotstDispatcher())
-            logger.info("[APP] Injected Dispatchers", style="green")
+            logger.info("[APP] Injected Dispatchers", style="bold green")
             broadcast.postEvent(ApplicationReady())
         async with self.stage("blocking"):
             pass

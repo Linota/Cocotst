@@ -28,25 +28,5 @@ QQ机器人开放平台支持通过使用HTTP接口接收事件。开发者可�
 ## 开始使用
 
 ```python
-from cocotst.app import Cocotst
-from cocotst.event.message import GroupMessage
-from cocotst.message.parser.base import QCommandMatcher
-from cocotst.network.model import Target, WebHookConfig
-
-app = Cocotst(
-    appid="", # 你的 APPID
-    clientSecret="", # 你的 ClientSecret
-    webhook_config=WebHookConfig(host="127.0.0.1", port=2099), # 你的 Webhook 配置
-    is_sand_box=True,
-)
-
-
-@app.broadcast.receiver(GroupMessage, decorators=[QCommandMatcher("ping")])
-async def catch(app: Cocotst, target: Target):
-    await app.send_group_message(target, content="pong!")
-
-
-if __name__ == "__main__":
-    app.launch_blocking()
 ```
 

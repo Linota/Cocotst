@@ -2,10 +2,10 @@
 # It is not intended for manual editing.
 
 [metadata]
-groups = ["default", "alc", "dev", "docs"]
+groups = ["default", "alc", "dev", "docs", "voice"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:bcb308f33a4ce73665dcd687055f3d6bed254da46ef877bae0393239f37cac9c"
+content_hash = "sha256:8e6ee914d4e29afb3b1bb064b8ea6d7f685799d6e11243a3180a393c68c6af09"
 
 [[metadata.targets]]
 requires_python = ">=3.11"
@@ -520,6 +520,51 @@ files = [
 ]
 
 [[package]]
+name = "graiax-silkcoder"
+version = "0.3.6"
+requires_python = ">=3.8"
+summary = "transform audio file to silk"
+groups = ["voice"]
+files = [
+    {file = "graiax-silkcoder-0.3.6.tar.gz", hash = "sha256:632c2c05a1d8fd5ef062b80fcdc9fe7f24c4235c678145998adf29731e0504e3"},
+    {file = "graiax_silkcoder-0.3.6-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:9068ed7a00ebb0532431429d6280cfb7b49b72d24e275f164a5b09db2ee711ff"},
+    {file = "graiax_silkcoder-0.3.6-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:26ea6b282f8866d089eac1efb0c4fe3fedcbfa3107b477756856251786be3063"},
+    {file = "graiax_silkcoder-0.3.6-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:ea1aef10328bd55777faf4ee7ef10a4e4a0034b3c2cc8a95d5125ec253953d81"},
+    {file = "graiax_silkcoder-0.3.6-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8095387f0e1842667c1a0bd60ebe281385119476499b7370663ea97bbc561db6"},
+    {file = "graiax_silkcoder-0.3.6-cp311-cp311-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:c04ab59ed0334db382da7e4845feaf52439705dadb0e53509004d71ef289c38d"},
+    {file = "graiax_silkcoder-0.3.6-cp311-cp311-musllinux_1_1_aarch64.whl", hash = "sha256:e3aae09e3a4f92bd1beaf5915689b97b36a25543469d6a5fcbee562e574e30b5"},
+    {file = "graiax_silkcoder-0.3.6-cp311-cp311-musllinux_1_1_i686.whl", hash = "sha256:c110f140675f3b04e3642e224c77e8bcfdef371b3a9a0cd1d50294404f38d53e"},
+    {file = "graiax_silkcoder-0.3.6-cp311-cp311-musllinux_1_1_x86_64.whl", hash = "sha256:1c1b8d09823225641f3c336e692fea582be2337b29782d44ecd78970f1ce23ee"},
+    {file = "graiax_silkcoder-0.3.6-cp311-cp311-win32.whl", hash = "sha256:ebd5a021cd26c41875015f38a9e01ef9df88b1840728a0e80b34a3c611ee8793"},
+    {file = "graiax_silkcoder-0.3.6-cp311-cp311-win_amd64.whl", hash = "sha256:bcc8595158306748a03c99a7b89bb4f0a459458ec0144c4add0861d7bce132e2"},
+]
+
+[[package]]
+name = "graiax-silkcoder"
+version = "0.3.6"
+extras = ["ffmpeg"]
+requires_python = ">=3.8"
+summary = "transform audio file to silk"
+groups = ["voice"]
+dependencies = [
+    "graiax-silkcoder==0.3.6",
+    "imageio-ffmpeg",
+]
+files = [
+    {file = "graiax-silkcoder-0.3.6.tar.gz", hash = "sha256:632c2c05a1d8fd5ef062b80fcdc9fe7f24c4235c678145998adf29731e0504e3"},
+    {file = "graiax_silkcoder-0.3.6-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:9068ed7a00ebb0532431429d6280cfb7b49b72d24e275f164a5b09db2ee711ff"},
+    {file = "graiax_silkcoder-0.3.6-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:26ea6b282f8866d089eac1efb0c4fe3fedcbfa3107b477756856251786be3063"},
+    {file = "graiax_silkcoder-0.3.6-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:ea1aef10328bd55777faf4ee7ef10a4e4a0034b3c2cc8a95d5125ec253953d81"},
+    {file = "graiax_silkcoder-0.3.6-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8095387f0e1842667c1a0bd60ebe281385119476499b7370663ea97bbc561db6"},
+    {file = "graiax_silkcoder-0.3.6-cp311-cp311-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:c04ab59ed0334db382da7e4845feaf52439705dadb0e53509004d71ef289c38d"},
+    {file = "graiax_silkcoder-0.3.6-cp311-cp311-musllinux_1_1_aarch64.whl", hash = "sha256:e3aae09e3a4f92bd1beaf5915689b97b36a25543469d6a5fcbee562e574e30b5"},
+    {file = "graiax_silkcoder-0.3.6-cp311-cp311-musllinux_1_1_i686.whl", hash = "sha256:c110f140675f3b04e3642e224c77e8bcfdef371b3a9a0cd1d50294404f38d53e"},
+    {file = "graiax_silkcoder-0.3.6-cp311-cp311-musllinux_1_1_x86_64.whl", hash = "sha256:1c1b8d09823225641f3c336e692fea582be2337b29782d44ecd78970f1ce23ee"},
+    {file = "graiax_silkcoder-0.3.6-cp311-cp311-win32.whl", hash = "sha256:ebd5a021cd26c41875015f38a9e01ef9df88b1840728a0e80b34a3c611ee8793"},
+    {file = "graiax_silkcoder-0.3.6-cp311-cp311-win_amd64.whl", hash = "sha256:bcc8595158306748a03c99a7b89bb4f0a459458ec0144c4add0861d7bce132e2"},
+]
+
+[[package]]
 name = "griffe"
 version = "1.5.1"
 requires_python = ">=3.9"
@@ -557,6 +602,22 @@ groups = ["default", "docs"]
 files = [
     {file = "idna-3.10-py3-none-any.whl", hash = "sha256:946d195a0d259cbba61165e88e65941f16e9b36ea6ddb97f00452bae8b1287d3"},
     {file = "idna-3.10.tar.gz", hash = "sha256:12f65c9b470abda6dc35cf8e63cc574b1c52b11df2c86030af0ac09b01b13ea9"},
+]
+
+[[package]]
+name = "imageio-ffmpeg"
+version = "0.6.0"
+requires_python = ">=3.9"
+summary = "FFMPEG wrapper for Python"
+groups = ["voice"]
+files = [
+    {file = "imageio_ffmpeg-0.6.0-py3-none-macosx_10_9_intel.macosx_10_9_x86_64.whl", hash = "sha256:9d2baaf867088508d4a3458e61eeb30e945c4ad8016025545f66c4b5aaef0a61"},
+    {file = "imageio_ffmpeg-0.6.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:b1ae3173414b5fc5f538a726c4e48ea97edc0d2cdc11f103afee655c463fa742"},
+    {file = "imageio_ffmpeg-0.6.0-py3-none-manylinux2014_aarch64.whl", hash = "sha256:1d47bebd83d2c5fc770720d211855f208af8a596c82d17730aa51e815cdee6dc"},
+    {file = "imageio_ffmpeg-0.6.0-py3-none-manylinux2014_x86_64.whl", hash = "sha256:c7e46fcec401dd990405049d2e2f475e2b397779df2519b544b8aab515195282"},
+    {file = "imageio_ffmpeg-0.6.0-py3-none-win32.whl", hash = "sha256:196faa79366b4a82f95c0f4053191d2013f4714a715780f0ad2a68ff37483cc2"},
+    {file = "imageio_ffmpeg-0.6.0-py3-none-win_amd64.whl", hash = "sha256:02fa47c83703c37df6bfe4896aab339013f62bf02c5ebf2dce6da56af04ffc0a"},
+    {file = "imageio_ffmpeg-0.6.0.tar.gz", hash = "sha256:e2556bed8e005564a9f925bb7afa4002d82770d6b08825078b7697ab88ba1755"},
 ]
 
 [[package]]
