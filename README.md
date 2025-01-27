@@ -167,7 +167,7 @@ pdm add graia-saya
 ```python
 # main.py
 from cocotst.app import Cocotst
-from cocotst.network.model import WebHookConfig
+from cocotst.config.webserver import WebHookConfig
 from creart import it
 from graia.saya import Saya
 from graia.saya.builtins.broadcast import BroadcastBehaviour
@@ -197,7 +197,7 @@ if __name__ == "__main__":
 # module/ping.py
 from cocotst.event.message import GroupMessage
 from cocotst.message.parser.base import QCommandMatcher
-from cocotst.network.model import Target
+from cocotst.network.model.target import Target
 from cocotst.app import Cocotst
 from graia.saya.builtins.broadcast.shortcut import listen, decorate
 

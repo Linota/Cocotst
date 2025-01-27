@@ -1,33 +1,3 @@
-<div align="center">
-
-# Cocotst
-
-_Easily to code qqoffcial bot. ._
-
-🥥
-
-[![PyPI](https://img.shields.io/pypi/v/cocotst)](https://pypi.org/project/cocotst)
-[![Python Version](https://img.shields.io/pypi/pyversions/cocotst)](https://pypi.org/project/cocotst)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
-[![License](https://img.shields.io/github/license/Linota/Cocotst)](https://github.com/Linota/Cocotst/blob/master/LICENSE)
-[![pdm-managed](https://img.shields.io/badge/pdm-managed-blueviolet)](https://pdm.fming.dev)
-
-[![docs](https://img.shields.io/badge/LINOTA-here-blue)](https://ctst.docs.linota.cn/)
-
-[![docs](https://img.shields.io/badge/API_文档-here-purple)](https://ctst.docs.linota.cn/api/NAV/)
-
-
-</div>
-
-<div align="center">
-
-## 🚨 公告 🚨
-**请注意：本项目仍在开发中，可能会有重大变更。**
-
-### 暂无公告
-</div>
-
 **本项目仅支持 Webhook 事件推送**
 
 **请自行反向代理 Webhook 服务器并添加 HTTPS**
@@ -167,7 +137,7 @@ pdm add graia-saya
 ```python
 # main.py
 from cocotst.app import Cocotst
-from cocotst.network.model import WebHookConfig
+from cocotst.config.webserver import WebHookConfig
 from creart import it
 from graia.saya import Saya
 from graia.saya.builtins.broadcast import BroadcastBehaviour
@@ -197,7 +167,7 @@ if __name__ == "__main__":
 # module/ping.py
 from cocotst.event.message import GroupMessage
 from cocotst.message.parser.base import QCommandMatcher
-from cocotst.network.model import Target
+from cocotst.network.model.target import Target
 from cocotst.app import Cocotst
 from graia.saya.builtins.broadcast.shortcut import listen, decorate
 
