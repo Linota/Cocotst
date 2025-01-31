@@ -86,7 +86,6 @@ class Cocotst:
             self._api = QQAPI(
                 app_id=self.appid,
                 client_secret=self.clientSecret,
-                access_token=self.mgr.get_component(QAuth).access_token.access_token,
                 is_sandbox=self.is_sand_box,
                 debug_config=self.debug,
             )

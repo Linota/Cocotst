@@ -12,7 +12,7 @@ from launart import Launart
 
 from enum import Enum
 
-from cocotst.network.services import AiohttpClientSessionService
+from cocotst.network.services import QAuth
 
 
 class MessageTarget(Enum):
@@ -84,7 +84,6 @@ class QQAPI:
         self,
         app_id: str,
         client_secret: str,
-        access_token: str,
         is_sandbox: bool = False,
         debug_config: Optional[DebugConfig] = None,
     ):
@@ -100,7 +99,6 @@ class QQAPI:
         """
         self.app_id = app_id
         self.client_secret = client_secret
-        self.access_token = access_token
         self.is_sandbox = is_sandbox
         self.debug_config = debug_config
 
@@ -128,7 +126,7 @@ class QQAPI:
         try:
             async with ClientSession() as session:
                 # 设置请求头
-                headers = {"Authorization": f"QQBot {self.access_token}", "Content-Type": "application/json"}
+                headers = {"Authorization": f"QQBot {Launart.current().get_component(QAuth).access_token}", "Content-Type": "application/json"}
 
                 # 发送请求
                 async with session.request(method, url, headers=headers, **kwargs) as resp:

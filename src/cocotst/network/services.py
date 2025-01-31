@@ -74,9 +74,10 @@ class UvicornService(Service):
 
         async with self.stage("cleanup"):
             server_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
+            try:
                 await server_task
-            logger.info("[Server] 服务已停止", style="bold blue")
+            except asyncio.CancelledError:
+                logger.info("[Server] 服务已停止", style="bold blue")
 
 
 class AiohttpClientSessionService(Service):
