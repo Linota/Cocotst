@@ -126,7 +126,7 @@ class QQAPI:
         try:
             async with ClientSession() as session:
                 # 设置请求头
-                headers = {"Authorization": f"QQBot {Launart.current().get_component(QAuth).access_token}", "Content-Type": "application/json"}
+                headers = {"Authorization": f"QQBot {Launart.current().get_component(QAuth).access_token.access_token}", "Content-Type": "application/json"}
 
                 # 发送请求
                 async with session.request(method, url, headers=headers, **kwargs) as resp:
