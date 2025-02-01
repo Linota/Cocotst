@@ -11,6 +11,7 @@ class Main(BaseModel):
     """主命令定义"""
 
     match: str = Field(description="匹配的命令")
+    alt_match: List[str] = Field(default_factory=list, description="替代匹配命令列表")
     need_argv: bool = Field(default=False, description="是否需要参数")
     lack_argv_stop: bool = Field(default=False, description="缺少参数时是否停止执行")
 
@@ -19,6 +20,7 @@ class Sub(BaseModel):
     """子命令定义"""
 
     match: str = Field(description="匹配的子命令")
+    alt_match: List[str] = Field(default_factory=list, description="替代匹配子命令列表")
     need_argv: bool = Field(default=False, description="是否需要参数")
     lack_argv_stop: bool = Field(default=False, description="缺少参数时是否停止执行")
 
@@ -33,6 +35,7 @@ class QSubResult(BaseModel):
     length: int = Field(description="命令长度 (包含主命令和子命令)")
     main_argv: str = Field(default="", description="主命令的参数")
     sub_argv: str = Field(default="", description="子命令的参数")
+    original_sub: Optional[str] = Field(default=None, description="原始子命令（匹配到的主要或替代命令）")
 
     def get_segments(self) -> List[str]:
         """获取所有命令块 (按空格分割)"""
@@ -53,10 +56,19 @@ class QSubResult(BaseModel):
         """是否匹配到主命令"""
         return self.length > 0
 
+    def match_main_command(self, main_match: str) -> bool:
+        """检查是否匹配特定的主命令"""
+        return self.command == main_match
+
     @property
     def match_sub(self) -> bool:
         """是否匹配到子命令"""
         return bool(self.subcommand)
+
+    def match_sub_command(self, sub_match: str) -> bool:
+        """检查是否匹配特定的子命令
+        传入主要命令，如果匹配到主要命令或其任何替代命令都返回True"""
+        return self.subcommand == sub_match
 
     @property
     def is_pure_main(self) -> bool:
@@ -88,24 +100,30 @@ class MessageSaw(BaseDispatcher):
                     self.subs.append(sub)
 
         # 生成匹配模式
-        self.patterns: List[Tuple[str, str, str]] = []
+        self.patterns: List[Tuple[str, str, str, str]] = []  # pattern, cmd, subcmd, original_sub
         self.base_patterns: List[Tuple[str, str]] = []
 
-        prefixes = [f"/{self.main.match}", self.main.match]
-        for prefix in prefixes:
-            # 主命令模式
-            self.base_patterns.append((prefix, self.main.match))
-            # 子命令模式
-            for sub in self.subs:
-                pattern = f"{prefix}{sub.match}"
-                self.patterns.append((pattern, self.main.match, sub.match))
+        # 主命令匹配模式，包含原始match和alt_match
+        all_main_matches = [self.main.match] + self.main.alt_match
+        for main_match in all_main_matches:
+            prefixes = [f"/{main_match}", main_match]
+            for prefix in prefixes:
+                # 主命令模式
+                self.base_patterns.append((prefix, main_match))
+                # 子命令模式
+                for sub in self.subs:
+                    # 所有子命令都映射到主要match
+                    all_sub_matches = [sub.match] + sub.alt_match
+                    for sub_match in all_sub_matches:
+                        pattern = f"{prefix}{sub_match}"
+                        self.patterns.append((pattern, main_match, sub.match, sub_match))
 
     async def cmd(self, content: Content) -> Optional[QSubResult]:
         raw_content = content.content
         content_str = raw_content.replace(" ", "")
 
         # 先尝试匹配带子命令的模式
-        for pattern, cmd, subcmd in self.patterns:
+        for pattern, cmd, subcmd, original_sub in self.patterns:
             if content_str.startswith(pattern):
                 remaining = content_str[len(pattern) :].strip()
                 # 检查子命令是否需要参数
@@ -120,6 +138,7 @@ class MessageSaw(BaseDispatcher):
                     length=len(pattern),
                     main_argv="",  # 子命令模式下主命令参数为空
                     sub_argv=remaining,  # 子命令的参数
+                    original_sub=original_sub,  # 保存原始匹配到的子命令
                 )
 
         # 如果没匹配到子命令，尝试匹配主命令
