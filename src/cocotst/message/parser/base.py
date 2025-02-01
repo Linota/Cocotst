@@ -2,13 +2,11 @@
 
 import abc
 from typing import Iterable, List, Optional, Union
-
 from graia.broadcast.builtin.derive import Derive
 from graia.broadcast.entities.decorator import Decorator
 from graia.broadcast.exceptions import ExecutionStop
 from graia.broadcast.interfaces.decorator import DecoratorInterface
 from graia.broadcast.interfaces.dispatcher import DispatcherInterface
-
 from cocotst.network.model.webhook import Content
 
 
