@@ -2,11 +2,12 @@ from typing import Literal, Optional, Union, TypedDict
 from os import PathLike
 import base64
 import aiofiles
-from aiohttp import ClientSession
+from cocotst.network.services import HttpxClientSessionService
+import httpx
 from loguru import logger
 
 from cocotst.config.debug import DebugConfig
-from cocotst.message.element import Ark, Element, Embed, Markdown, MediaElement
+from cocotst.message.element import Ark, Element, Embed, Image, Markdown, MediaElement, Keyboard
 from cocotst.network.model.http_api import OpenAPIErrorCallback
 from launart import Launart
 
@@ -121,24 +122,26 @@ class QQAPI:
         # 构建完整的URL
         url = f"{self.api_base}{path}"
 
-       
+        asyncclient = Launart.current().get_component(HttpxClientSessionService).async_client_safe
 
         try:
-            async with ClientSession() as session:
-                # 设置请求头
-                headers = {"Authorization": f"QQBot {Launart.current().get_component(QAuth).access_token.access_token}", "Content-Type": "application/json"}
+            # 设置请求头
+            headers = {
+                "Authorization": f"QQBot {Launart.current().get_component(QAuth).access_token.access_token}",
+                "Content-Type": "application/json",
+            }
 
-                # 发送请求
-                async with session.request(method, url, headers=headers, **kwargs) as resp:
-                    # 获取响应数据
-                    rt = await resp.json()
+            # 发送请求
+            resp = await asyncclient.request(method, url, headers=headers, **kwargs)
+            # 获取响应数据
+            rt = resp.json()
 
-                    # 检查是否有错误
-                    if "code" in rt:
-                        cb = OpenAPIErrorCallback(**rt)
-                        logger.error("[QQAPI.commonApi] OpenAPI错误: {}", cb, style="bold red")
-                        return cb
-                    return rt
+            # 检查是否有错误
+            if "code" in rt:
+                cb = OpenAPIErrorCallback(**rt)
+                logger.error("[QQAPI.commonApi] OpenAPI错误: {}", cb, style="bold red")
+                return cb
+            return rt
 
         except Exception as e:
             # 详细记录错误信息
@@ -309,6 +312,9 @@ class QQAPI:
         event_id: Optional[str] = None,
         msg_id: Optional[str] = None,
         msg_seq: Optional[int] = None,
+        markdown: Optional[Markdown] = None,
+        keyboard: Optional[Keyboard] = None,
+        ark: Optional[Ark] = None,
     ) -> MessageData:
         """
         准备发送消息所需的数据。会根据元素类型自动设置正确的消息类型和媒体信息。
@@ -325,9 +331,9 @@ class QQAPI:
         message_data: MessageData = {
             "content": content,
             "msg_type": msg_type or 0,  # 默认为文本消息
-            "markdown": element if isinstance(element, Markdown) else None,
-            "keyboard": element if isinstance(element, Embed) else None,
-            "ark": element if isinstance(element, Ark) else None,
+            "markdown": element if isinstance(element, Markdown) else markdown if markdown else None,
+            "keyboard": element if isinstance(element, Keyboard) else keyboard if keyboard else None,
+            "ark": element if isinstance(element, Ark) else ark if ark else None,
             "media": None,
             "message_reference": None,
             "event_id": event_id,
@@ -336,15 +342,52 @@ class QQAPI:
         }
         return message_data
 
+    async def prepare_guild_message_data(
+        self,
+        content: str = "",
+        embed: Optional[Embed] = None,
+        ark: Optional[Ark] = None,
+        message_reference: Optional[object] = None,
+        image: Optional[str] = None,
+        msg_id: Optional[str] = None,
+        event_id: Optional[str] = None,
+        markdown: Optional[Markdown] = None,
+    ) -> dict:
+        """
+        准备发送频道消息所需的数据。会根据元素类型自动设置正确的消息类型和媒体信息。
+
+        参数:
+            content: 消息内容
+            embed: embed消息
+            ark: ark消息
+            message_reference: 引用消息对象
+            image: 图片url地址
+            msg_id: 要回复的消息id
+            event_id: 要回复的事件id
+            markdown: markdown消息
+        """
+        # 基础消息数据
+        message_data = {
+            "content": content,
+            "embed": embed,
+            "ark": ark,
+            "message_reference": message_reference,
+            "image": image,
+            "msg_id": msg_id,
+            "event_id": event_id,
+            "markdown": markdown,
+        }
+        return message_data
+
     async def send_message(
         self,
-        target_type: Literal["group", "c2c", "channel", "dms"],
+        target_type: Literal["group", "c2c"],
         target_id: str,
         message_data: dict,
         media_element: Optional[MediaElement] = None,
     ) -> dict:
         """
-        发送消息的统一方法。
+        发送非频道消息的统一方法。
 
         现在这个方法不再需要手动处理媒体类型的转换，因为message_data中
         已经包含了正确的媒体类型信息。它只需要负责发送消息和记录日志。
@@ -352,8 +395,6 @@ class QQAPI:
         path_map = {
             "group": f"/v2/groups/{target_id}/messages",
             "c2c": f"/v2/users/{target_id}/messages",
-            "channel": f"/channels/{target_id}/messages",
-            "dms": f"/dms/{target_id}/messages",
         }
 
         path = path_map[target_type]
@@ -389,6 +430,73 @@ class QQAPI:
 
         return response
 
+    async def send_guild_message(
+        self,
+        target_type: Literal["channel", "dms"],
+        target_id: str,
+        message_data: dict,
+        image: Optional[Image] = None,
+    ) -> dict:
+        """
+        发送频道消息的统一方法。
+
+        现在这个方法不再需要手动处理媒体类型的转换，因为message_data中
+        已经包含了正确的媒体类型信息。它只需要负责发送消息和记录日志。
+        """
+        path_map = {
+            "channel": f"/channels/{target_id}/messages",
+            "dms": f"/dms/{target_id}/messages",
+        }
+        path = path_map[target_type]
+
+        # 处理图片元素
+        if image:
+            if image.url:
+                message_data["image"] = image.url
+
+        # 处理文件图片
+        if image:
+            if image.data or image.path:
+                file_image = await image.as_data_bytes()
+                # remove none
+                data = {
+                    message_data_key: message_data[message_data_key]
+                    for message_data_key in message_data
+                    if message_data[message_data_key] is not None
+                }
+
+                # 特殊处理，没有使用 AioHttp 的原因是因为 AioHttp 会导致文件上传失败
+                client = Launart.current().get_component(HttpxClientSessionService).async_client_safe
+                response = (
+                    await client.post(
+                        f"{self.api_base}{path}",
+                        data=data,
+                        files={"file_image": file_image},
+                        headers={
+                            "Authorization": f"QQBot {Launart.current().get_component(QAuth).access_token.access_token}",
+                        },
+                    )
+                ).json()
+
+        else:
+            response = await self.common_api(path, "POST", json=message_data)
+        # 处理响应
+        if isinstance(response, OpenAPIErrorCallback):
+            logger.error(
+                f"[消息发送失败] 类型: {target_type} | 目标: {target_id} | 错误: {response}", style="bold red"
+            )
+            return response
+
+        # 记录成功发送的日志
+        self._log_message_sent(
+            message_type=target_type,
+            target_id=target_id,
+            message_id=response.get("id", "unknown"),
+            content=message_data.get("content"),
+        )
+
+        return response
+
     async def recall_message(
         self, target_type: MessageTarget, target_id: str, message_id: str, hide_tip: bool = False
     ) -> bool:
@@ -409,7 +517,7 @@ class QQAPI:
         """
         try:
             # 首先记录开始执行撤回操作的日志
-            logger.debug(
+            logger.info(
                 f"[QQAPI.recallMessage] 开始撤回消息 | 类型: {target_type.name} | "
                 f"目标: {target_id} | 消息ID: {message_id}",
                 style="bold blue",

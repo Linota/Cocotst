@@ -59,6 +59,10 @@ class D(BaseModel):
     # Normal 专有字段
     message_scene: Optional[MessageScene] = None
 
+    # DMS 专有字段
+    direct_message: Optional[bool] = None
+    src_guild_id: Optional[str] = None
+
     # 以下字段为群专有字段
     group_id: Optional[str] = None
     op_member_openid: Optional[str] = None
