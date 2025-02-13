@@ -2,11 +2,7 @@
 
 from typing import List, Optional
 
-from pydantic import BaseModel,RootModel
-from aiohttp.client import ClientSession
-
-
-
+from pydantic import BaseModel
 
 
 class Mention(BaseModel):

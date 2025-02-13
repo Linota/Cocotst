@@ -1,6 +1,7 @@
 from pydantic import BaseModel,RootModel
 from typing import List, Optional
-from aiohttp.client import ClientSession
+import launart
+from cocotst.network.services import HttpxClientSessionService
 
 class Attachment(BaseModel):
     id: Optional[str] = "C2CNOID"
@@ -12,10 +13,13 @@ class Attachment(BaseModel):
     content_type: str
 
     async def to_data_bytes(self) -> bytes:
-        async with ClientSession() as session:
-            async with session.get(self.url) as response:
-                return await response.read()
-            
+        if self.url:
+            session = launart.Launart.current().get_component(HttpxClientSessionService).async_client
+            # check url scheme
+            if self.url.startswith("http"):
+                return (await session.get(self.url)).content
+            else:
+                return (await session.get("http://" + self.url)).content
 
 class Attachments(RootModel[List[Attachment]]):
     """消息附件"""

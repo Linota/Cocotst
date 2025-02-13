@@ -11,7 +11,6 @@ dependencies = [
     "graia-broadcast>=0.23.5",
     "cryptography>=43.0.3",
     "loguru>=0.7.2",
-    "aiohttp>=3.10.10",
     "requests>=2.32.3",
     "Launart>=0.8.2",
     "aiofiles>=24.1.0",
@@ -19,6 +18,7 @@ dependencies = [
     "richuru>=0.1.1",
     "watchdog[watchmedo]>=6.0.0",
     "pydantic>=2.0",
+    "httpx>=0.28.1",
 ]
 requires-python = ">=3.11"
 readme = "README.md"

@@ -15,12 +15,19 @@ from uvicorn.config import Config
 
 from cocotst.config.debug import DebugConfig
 from cocotst.event.builtin import DebugFlagSetup
-from cocotst.event.message import C2CMessage, GroupMessage, MessageEvent, MessageSent
-from cocotst.message.element import Element, MediaElement
+from cocotst.event.message import (
+    C2CMessage,
+    ChannelMessage,
+    DirectMessage,
+    GroupMessage,
+    MessageEvent,
+    MessageSent,
+)
+from cocotst.message.element import Ark, Element, Embed, Image, Keyboard, Markdown, MediaElement
 from cocotst.config.webserver import FileServerConfig, WebHookConfig
 from cocotst.network.model.target import Target
 from cocotst.network.model.http_api import OpenAPIErrorCallback
-from cocotst.network.services import AiohttpClientSessionService, QAuth, UvicornService
+from cocotst.network.services import HttpxClientSessionService, QAuth, UvicornService
 from cocotst.network.webhook import postevent
 from cocotst.utils import get_msg_type
 from cocotst.network.qqapi import QQAPI, MessageRecallError, MessageTarget
@@ -96,6 +103,9 @@ class Cocotst:
         target: Target,
         content: str = " ",
         element: Optional[Element] = None,
+        markdown: Optional[Markdown] = None,
+        keyboard: Optional[Keyboard] = None,
+        ark: Optional[Ark] = None,
         proactive: bool = False,
     ) -> Union[MessageSent, OpenAPIErrorCallback]:
         """
@@ -115,6 +125,11 @@ class Cocotst:
             logger.error("[Cocotst.sendGroupMsg] 发送被动消息时必须提供 target.target_id 或 target.event_id")
             raise ValueError("发送被动消息时必须提供 target.target_id 或 target.event_id")
 
+        # 主动发送消息时，清除 event_id，msg_id
+        if proactive:
+            target.event_id = None
+            target.target_id = None
+
         # 准备消息数据
         message_data = await self.api.prepare_message_data(
             content=content,
@@ -123,6 +138,9 @@ class Cocotst:
             event_id=target.event_id,
             msg_id=target.target_id,
             msg_seq=random.randint(1, 100) if self.random_msgseq else None,
+            ark=ark,
+            markdown=markdown,
+            keyboard=keyboard,
         )
 
         # 发送消息
@@ -143,6 +161,9 @@ class Cocotst:
         target: Target,
         content: str = " ",
         element: Optional[Element] = None,
+        markdown: Optional[Markdown] = None,
+        keyboard: Optional[Keyboard] = None,
+        ark: Optional[Ark] = None,
         proactive: bool = False,
     ) -> Union[MessageSent, OpenAPIErrorCallback]:
         """
@@ -161,6 +182,10 @@ class Cocotst:
             logger.error("[Cocotst.sendC2CMsg] 发送被动消息时必须提供 target.target_id 或 target.event_id")
             raise ValueError("发送被动消息时必须提供 target.target_id 或 target.event_id")
 
+        if proactive:
+            target.event_id = None
+            target.target_id = None
+
         message_data = await self.api.prepare_message_data(
             content=content,
             element=element,
@@ -168,6 +193,9 @@ class Cocotst:
             event_id=target.event_id,
             msg_id=target.target_id,
             msg_seq=random.randint(1, 100) if self.random_msgseq else None,
+            ark=ark,
+            markdown=markdown,
+            keyboard=keyboard,
         )
 
         try:
@@ -206,6 +234,133 @@ class Cocotst:
         if isinstance(target, GroupMessage):
             return await self.send_group_message(target.target, content, element, proactive)
         raise ValueError(f"Unsupported message type: {type(target)}")
+
+    async def send_channel_message(
+        self,
+        target: Target,
+        content: str = " ",
+        image: Optional[Image] = None,
+        markdown: Optional[Markdown] = None,
+        ark: Optional[Ark] = None,
+        embed: Optional[Embed] = None,
+        proactive: bool = False,
+    ) -> Union[MessageSent, OpenAPIErrorCallback]:
+        """
+        发送子频道消息的统一接口。
+
+        Args:
+            target: 消息目标信息
+            content: 消息内容
+            image: 图片消息元素，考虑到 qq 频道消息只支持图片消息，所以只支持图片消息
+            proactive: 是否主动发送
+
+        Returns:
+            消息发送结果
+        """
+        if not proactive and not (target.target_id or target.event_id):
+            logger.error(
+                "[Cocotst.sendChannelMsg] 发送被动消息时必须提供 target.target_id 或 target.event_id"
+            )
+            raise ValueError("发送被动消息时必须提供 target.target_id 或 target.event_id")
+
+        if proactive:
+            target.event_id = None
+            target.target_id = None
+
+        message_data = await self.api.prepare_guild_message_data(
+            content=content,
+            embed=embed,
+            ark=ark,
+            message_reference=None,
+            image=image.url if image else None,
+            msg_id=target.target_id,
+            event_id=target.event_id,
+            markdown=markdown,
+        )
+
+        try:
+            response = await self.api.send_guild_message(
+                target_type="channel",
+                target_id=target.target_unit,
+                message_data=message_data,
+                image=image if isinstance(image, MediaElement) else None,
+            )
+            return MessageSent(**response)
+        except Exception as e:
+            logger.error(f"[Cocotst.sendChannelMsg] 发送消息失败: {e}")
+            raise
+
+    async def send_dms_message(
+        self,
+        target: Target,
+        content: str = " ",
+        image: Optional[Image] = None,
+        markdown: Optional[Markdown] = None,
+        ark: Optional[Ark] = None,
+        embed: Optional[Embed] = None,
+        proactive: bool = False,
+    ) -> Union[MessageSent, OpenAPIErrorCallback]:
+        """
+        发送频道私信消息的统一接口。
+
+        Args:
+            content: 消息内容
+            image: 图片消息元素，考虑到 qq 频道消息只支持图片消息，所以只支持图片消息
+            proactive: 是否主动发送
+            markdown: markdown 消息元素
+            ark: ark 消息元素
+            embed: embed 消息元素
+        """
+        if not proactive and not (target.target_id or target.event_id):
+            logger.error("[Cocotst.sendDMSMsg] 发送被动消息时必须提供 target.target_id 或 target.event_id")
+            raise ValueError("发送被动消息时必须提供 target.target_id 或 target.event_id")
+
+        message_data = await self.api.prepare_guild_message_data(
+            content=content,
+            embed=embed,
+            ark=ark,
+            message_reference=None,
+            image=image.url if image else None,
+            markdown=markdown,
+            msg_id=target.target_id,
+            event_id=target.event_id,
+        )
+
+        try:
+            response = await self.api.send_guild_message(
+                target_type="dms",
+                target_id=target.target_unit,
+                message_data=message_data,
+                image=image if isinstance(image, MediaElement) else None,
+            )
+            return MessageSent(**response)
+        except Exception as e:
+            logger.error(f"[Cocotst.sendDMSMsg] 发送消息失败: {e}")
+            raise
+
+    async def send_guild_message(
+        self,
+        target: MessageEvent,
+        content: str = " ",
+        element: Optional[Element] = None,
+        proactive: bool = False,
+    ) -> Union[MessageSent, OpenAPIErrorCallback]:
+        """
+        统一的频道消息发送接口，根据消息类型自动选择发送方式。
+
+        Args:
+            target: 消息事件
+            content: 消息内容
+            element: 消息元素
+            proactive: 是否主动发送
+
+        Returns:
+            消息发送结果
+        """
+        if isinstance(target, ChannelMessage):
+            return await self.send_channel_message(target.target, content, element, proactive)
+        if isinstance(target, DirectMessage):
+            return await self.send_dms_message(target.target, content, element, proactive)
 
     async def _get_target_id(self, target: Union[str, Target, MessageEvent]) -> str:
         """
@@ -358,7 +513,7 @@ class Cocotst:
             此功能仅对私域机器人可用
         """
         try:
-            target_id = channel_id if isinstance(channel_id, str) else getattr(channel_id, "channel_id", None)
+            target_id = channel_id.target_unit if isinstance(channel_id, Target) else channel_id
             if target_id is None:
                 raise ValueError("无法从提供的参数中获取channel_id")
 
@@ -408,7 +563,7 @@ class Cocotst:
             此功能仅对私域机器人可用
         """
         try:
-            target_id = guild_id if isinstance(guild_id, str) else getattr(guild_id, "guild_id", None)
+            target_id = guild_id.target_unit if isinstance(guild_id, Target) else guild_id
             if target_id is None:
                 raise ValueError("无法从提供的参数中获取guild_id")
 
@@ -438,9 +593,7 @@ class Cocotst:
             ]
         )
         # 添加 Aiohttp 服务组件
-        self.mgr.add_component(
-            AiohttpClientSessionService()
-        )
+        self.mgr.add_component(HttpxClientSessionService())
         # 添加认证组件
         self.mgr.add_component(QAuth(self.appid, self.clientSecret))
 

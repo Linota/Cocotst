@@ -2,16 +2,19 @@ import asyncio
 import contextlib
 from typing import cast
 
-import requests
-from aiohttp import ClientSession, ClientTimeout
+import httpx
 from launart import Launart, Service
 from loguru import logger
 from uvicorn.config import Config
 from uvicorn.server import Server
-from aiohttp import ClientSession
-from aiohttp.connector import TCPConnector
 import ssl
+from httpx import AsyncClient
+import logging
 
+
+httpx_logger = logging.getLogger("httpx")
+
+httpx_logger.setLevel(logging.WARNING)
 
 from cocotst.network.model.http_api import AccessToken
 
@@ -34,7 +37,7 @@ def auth(appid: str, clientSecret: str) -> AccessToken:
         KeyError: 当获取令牌失败时抛出异常
     """
     try:
-        response = requests.post(
+        response = httpx.post(
             "https://bots.qq.com/app/getAppAccessToken",
             json={"appId": appid, "clientSecret": clientSecret},
         )
@@ -80,14 +83,19 @@ class UvicornService(Service):
                 logger.info("[Server] 服务已停止", style="bold blue")
 
 
-class AiohttpClientSessionService(Service):
-    """Aiohttp客户端服务，此服务不被 QAuth 以及 QQAPI 所依赖，且此服务使用 TLS 堆栈默认安全设置"""
+class HttpxClientSessionService(Service):
+    """Aiohttp客户端服务，此服务不被 QAuth 以及 QQAPI 所依赖，支持自定义一个 session，基带一个默认的 session 和降低安全性的 session"""
 
     id = "http.client/aiohttp"
-    session: ClientSession
+    async_client: AsyncClient
+    """Httpx连接"""
+    async_client_safe: AsyncClient
+    """安全 Httpx连接"""
+    session: AsyncClient | None
+    """自定义 Httpx连接"""
 
-    def __init__(self, session: ClientSession | None = None) -> None:
-        self.session = cast(ClientSession, session)
+    def __init__(self, session: AsyncClient | None = None) -> None:
+        self.session = cast(AsyncClient, session)
         super().__init__()
 
     @property
@@ -99,12 +107,15 @@ class AiohttpClientSessionService(Service):
         return set()
 
     async def launch(self, _: Launart):
+
         async with self.stage("preparing"):
-            if self.session is None:
-                connector = TCPConnector(ssl_context=ssl_ctx)
-                self.session = ClientSession(timeout=ClientTimeout(total=None), connector=connector)
+            logger.info("[Httpx] 正在启动客户端服务", style="bold blue")
+            self.async_client = AsyncClient(verify=ssl_ctx)
+            self.async_client_safe = AsyncClient()
         async with self.stage("cleanup"):
-            await self.session.close()
+            await self.async_client.aclose()
+            await self.async_client_safe.aclose()
+            logger.info("[Httpx] 客户端服务已停止", style="bold blue")
 
 
 class QAuth(Service):
@@ -113,6 +124,7 @@ class QAuth(Service):
     id = "QAuth"
     appid: str
     clientSecret: str
+    asyncclient: AsyncClient
 
     @property
     def stages(self):
@@ -125,20 +137,18 @@ class QAuth(Service):
     def __init__(self, appid: str, clientSecret: str):
         self.appid = appid
         self.clientSecret = clientSecret
+        self.asyncclient = AsyncClient()
         super().__init__()
 
     async def auth_async(self, mgr: Launart, appid: str, clientSecret: str):
         while True:
             await asyncio.sleep(int(self.access_token.expires_in))
             logger.info("[QQ] 正在刷新令牌", style="bold blue")
-
-            async with ClientSession() as session:
-                async with session.post(
-                    "https://bots.qq.com/app/getAppAccessToken",
-                    json={"appId": appid, "clientSecret": clientSecret},
-                ) as resp:
-                    resp.raise_for_status()
-                    self.access_token = AccessToken.model_validate(await resp.json())
+            resp = self.asyncclient.post(
+                "https://bots.qq.com/app/getAppAccessToken",
+                json={"appId": appid, "clientSecret": clientSecret},
+            )
+            self.access_token = AccessToken.model_validate((await resp).json())
 
             logger.success("[QQ] 令牌刷新成功", style="bold green")
             logger.info("[QQ] 下一次令牌刷新时间: {}", self.access_token.expires_in, style="bold blue")

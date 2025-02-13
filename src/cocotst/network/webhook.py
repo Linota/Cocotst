@@ -1,6 +1,5 @@
 import json
-from typing import Optional, Dict, Any, Callable
-from functools import partial
+from typing import Dict, Any
 from dataclasses import dataclass
 
 from creart import it
@@ -11,7 +10,7 @@ from starlette.responses import JSONResponse
 
 from cocotst.config.debug import DebugFlag
 from cocotst.event.builtin import DebugFlagSetup
-from cocotst.event.message import C2CMessage, ChannelMessage, GroupMessage
+from cocotst.event.message import C2CMessage, ChannelMessage, DirectMessage, GroupMessage
 from cocotst.event.proactive import (
     C2CAllowBotProactiveMessage,
     C2CRejectBotProactiveMessage,
@@ -23,7 +22,6 @@ from cocotst.network.model.event_element.normal import Group, Member
 from cocotst.network.model.webhook import Content, Payload
 from cocotst.network.services import QAuth
 from cocotst.network.sign import sign
-from cocotst.utils.guild import handle_text
 
 # 全局实例
 broadcast = it(Broadcast)
@@ -62,6 +60,10 @@ class PayloadPath:
     GUILD_ID = "d.guild_id"
     SEQ = "d.seq"
     SEQ_IN_CHANNEL = "d.seq_in_channel"
+
+    # DMS相关
+    DIRECT_MESSAGE = "d.direct_message"
+    SRC_GUILD_ID = "d.src_guild_id"
 
     # C2C相关
     USER_OPENID = "d.openid"
@@ -304,6 +306,24 @@ EVENT_CONFIGS = {
             "id": PayloadPath.ROOT + "id",
             "timestamp": PayloadPath.TIMESTAMP,
             "user_openid": PayloadPath.USER_OPENID,
+        },
+    ),
+    "DIRECT_MESSAGE_CREATE": EventConfig(
+        event_class=DirectMessage,
+        log_category="频道DMS消息",
+        event_params={
+            "id": PayloadPath.MESSAGE_ID,
+            "content": PayloadPath.CONTENT,
+            "timestamp": PayloadPath.TIMESTAMP,
+            "author": PayloadPath.AUTHOR,
+            "channel_id": PayloadPath.CHANNEL_ID,
+            "guild_id": PayloadPath.GUILD_ID,
+            "attachments": PayloadPath.ATTACHMENTS,
+            "seq": PayloadPath.SEQ,
+            "seq_in_channel": PayloadPath.SEQ_IN_CHANNEL,
+            "member": PayloadPath.MEMBER,
+            "direct_message": PayloadPath.DIRECT_MESSAGE,
+            "src_guild_id": PayloadPath.SRC_GUILD_ID,
         },
     ),
 }

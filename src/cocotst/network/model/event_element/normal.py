@@ -3,7 +3,7 @@
 from typing import Optional
 from pydantic import BaseModel
 from cocotst.network.model.target import Target
-from aiohttp.client import ClientSession
+
 
 class MessageScene(BaseModel):
     """消息场景"""

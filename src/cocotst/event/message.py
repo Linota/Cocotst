@@ -10,6 +10,7 @@ from cocotst.network.model.event_element.guild import Member as GuildMember, Men
 from cocotst.network.model.event_element import Attachments
 from cocotst.event import CocotstBaseEvent
 
+
 class MessageEvent(CocotstBaseEvent):
     """消息事件"""
 
@@ -31,10 +32,9 @@ class MessageEvent(CocotstBaseEvent):
                     return interface.event.content
                 if interface.annotation == Author:
                     return interface.event.author
-                
+
     @property
-    def target(self):
-        ...
+    def target(self): ...
 
 
 class GroupMessage(MessageEvent):
@@ -93,17 +93,22 @@ class C2CMessage(MessageEvent):
 
 class ChannelMessage(MessageEvent):
     """子频道消息事件"""
+
     channel_id: str
     """子频道 ID"""
     guild_id: str
     """服务器(大频道) ID"""
-    mention: Optional[Mention] = None
+    mentions: List[Mention]
     """@ 对象信息"""
     member: GuildMember
     """服务器成员信息"""
     attachments: Optional[Attachments] = None
     """附件信息"""
-    
+    seq: int
+    """消息序号"""
+    seq_in_channel: int
+    """子频道消息序号"""
+
     @property
     def target(self):
         """快速回复目标"""
@@ -124,22 +129,31 @@ class ChannelMessage(MessageEvent):
                         raise ExecutionStop
                     return interface.event.attachments
 
+
 class DirectMessage(MessageEvent):
     """频道私聊消息事件"""
+
     channel_id: str
     """子频道 ID"""
     guild_id: str
     """服务器(大频道) ID"""
-    mention: Optional[Mention] = None
-    """@ 对象信息"""
     member: GuildMember
     """服务器成员信息"""
     attachments: Optional[Attachments] = None
     """附件信息"""
+    seq: int
+    """消息序号"""
+    seq_in_channel: int
+    """子频道消息序号"""
+    direct_message: bool
+    """是否为私聊消息"""
+    src_guild_id: str
+    """源服务器 ID"""
+
     @property
     def target(self):
         """快速回复目标"""
-        return Target(target_unit=self.channel_id, target_id=self.id)
+        return Target(target_unit=self.guild_id, target_id=self.id)
 
     class Dispatcher(BaseDispatcher):
         @staticmethod
@@ -155,6 +169,7 @@ class DirectMessage(MessageEvent):
                     if interface.event.attachments is None:
                         raise ExecutionStop
                     return interface.event.attachments
+
 
 class MessageSent(CocotstBaseEvent):
     """消息发送事件"""
