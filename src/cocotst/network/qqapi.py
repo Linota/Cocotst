@@ -465,7 +465,8 @@ class QQAPI:
                     if message_data[message_data_key] is not None
                 }
 
-                # 特殊处理，没有使用 AioHttp 的原因是因为 AioHttp 会导致文件上传失败
+                # 特殊处理，没有使用 AioHttp 的原因是因为 AioHttp 疑似会导致文件上传失败
+                # 使用 multi-part/form-data 方式上传文件所以不适用 self.common_api
                 client = Launart.current().get_component(HttpxClientSessionService).async_client_safe
                 response = (
                     await client.post(

@@ -40,8 +40,8 @@ class MediaElement(Element):
                 return await f.read()
         if self.url:
             session = Launart.current().get_component(HttpxClientSessionService).async_client
-            async with session.get(self.url) as response:
-                return await response.read()
+            resp = await session.get(self.url)
+            return resp.content
 
 
 class Image(MediaElement):

@@ -44,6 +44,7 @@ class GroupMessage(MessageEvent):
     """群信息"""
     member: GroupMember
     """群成员信息"""
+    attachments: Optional[Attachments] = None
 
     @property
     def target(self):
@@ -62,6 +63,10 @@ class GroupMessage(MessageEvent):
                     return interface.event.member
                 if interface.annotation == Target:
                     return interface.event.target
+                if interface.annotation == Attachments:
+                    if interface.event.attachments is None:
+                        raise ExecutionStop
+                    return interface.event.attachments
 
 
 class C2CMessage(MessageEvent):

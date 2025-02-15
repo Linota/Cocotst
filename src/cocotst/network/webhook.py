@@ -201,6 +201,7 @@ EVENT_CONFIGS = {
             "message_scene": PayloadPath.MESSAGE_SCENE,
             "group": PayloadPath.SPECIAL_GROUP,
             "member": PayloadPath.SPECIAL_MEMBER,
+            "attachments": PayloadPath.ATTACHMENTS,
         },
     ),
     "C2C_MESSAGE_CREATE": EventConfig(
