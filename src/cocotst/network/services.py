@@ -10,6 +10,7 @@ from uvicorn.server import Server
 import ssl
 from httpx import AsyncClient
 import logging
+from launart.status import Phase
 
 
 httpx_logger = logging.getLogger("httpx")
@@ -53,19 +54,19 @@ class UvicornService(Service):
 
     id = "UvicornService"
 
-    def __init__(self, config: Config = None):
+    def __init__(self, config: Config) -> None:
         self.config = config
         super().__init__()
 
     @property
-    def stages(self):
+    def stages(self) -> set[Phase]:
         return {"preparing", "blocking", "cleanup"}
 
     @property
     def required(self):
         return set()
 
-    async def launch(self, mgr: Launart):
+    async def launch(self, manager: Launart):
         server = Server(config=self.config)
 
         async with self.stage("preparing"):
@@ -73,7 +74,7 @@ class UvicornService(Service):
 
         async with self.stage("blocking"):
             server_task = asyncio.create_task(server.serve())
-            await mgr.status.wait_for_sigexit()
+            await manager.status.wait_for_sigexit()
 
         async with self.stage("cleanup"):
             server_task.cancel()
@@ -99,14 +100,14 @@ class HttpxClientSessionService(Service):
         super().__init__()
 
     @property
-    def stages(self):
+    def stages(self) -> set[Phase]:
         return {"preparing", "cleanup"}
 
     @property
     def required(self):
         return set()
 
-    async def launch(self, _: Launart):
+    async def launch(self, manager: Launart):
 
         async with self.stage("preparing"):
             logger.info("[Httpx] 正在启动客户端服务", style="bold blue")
@@ -127,7 +128,7 @@ class QAuth(Service):
     asyncclient: AsyncClient
 
     @property
-    def stages(self):
+    def stages(self) -> set[Phase]:
         return {"preparing", "blocking", "cleanup"}
 
     @property
@@ -153,7 +154,7 @@ class QAuth(Service):
             logger.success("[QQ] 令牌刷新成功", style="bold green")
             logger.info("[QQ] 下一次令牌刷新时间: {}", self.access_token.expires_in, style="bold blue")
 
-    async def launch(self, mgr: Launart):
+    async def launch(self, manager: Launart):
         async with self.stage("preparing"):
             logger.info("[QQ] 正在获取首次令牌", style="bold blue")
             self.access_token = auth(self.appid, self.clientSecret)
@@ -161,8 +162,8 @@ class QAuth(Service):
             logger.info("[QQ] 下一次令牌刷新时间: {}", self.access_token.expires_in, style="bold blue")
 
         async with self.stage("blocking"):
-            refresh_task = asyncio.create_task(self.auth_async(mgr, self.appid, self.clientSecret))
-            await mgr.status.wait_for_sigexit()
+            refresh_task = asyncio.create_task(self.auth_async(manager, self.appid, self.clientSecret))
+            await manager.status.wait_for_sigexit()
 
         async with self.stage("cleanup"):
             refresh_task.cancel()

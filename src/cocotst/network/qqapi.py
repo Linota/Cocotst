@@ -1,3 +1,4 @@
+from ast import Dict
 from typing import Literal, Optional, Union, TypedDict
 from os import PathLike
 import base64
@@ -14,6 +15,7 @@ from launart import Launart
 from enum import Enum
 
 from cocotst.network.services import QAuth
+from cocotst.network.typing import OpenAPIResponse
 
 
 class MessageTarget(Enum):
@@ -43,10 +45,10 @@ class MessageData(TypedDict):
     content: str
     msg_type: Literal[0, 2, 3, 4, 7]
     markdown: Optional[Markdown]
-    keyboard: Optional[Embed]
-    media: Optional[str]
+    keyboard: Optional[Keyboard]
+    media: Optional[OpenAPIResponse]
     ark: Optional[Ark]
-    message_reference: Optional[object]
+    message_reference: Optional[str]
     event_id: Optional[str]
     msg_id: Optional[str]
     msg_seq: Optional[int]
@@ -107,7 +109,9 @@ class QQAPI:
         self.api_host = "sandbox.api.sgroup.qq.com" if is_sandbox else "api.sgroup.qq.com"
         self.api_base = f"https://{self.api_host}"
 
-    async def common_api(self, path: str, method: str, **kwargs) -> Union[dict, OpenAPIErrorCallback]:
+    async def common_api(
+        self, path: str, method: str, **kwargs
+    ) -> Union[OpenAPIResponse, OpenAPIErrorCallback]:
         """
         通用API请求方法。处理所有与QQ开放平台的HTTP通信。
 
@@ -134,13 +138,13 @@ class QQAPI:
             # 发送请求
             resp = await asyncclient.request(method, url, headers=headers, **kwargs)
             # 获取响应数据
-            rt = resp.json()
-
+            rt: OpenAPIResponse = resp.json()
             # 检查是否有错误
             if "code" in rt:
-                cb = OpenAPIErrorCallback(**rt)
+                cb = OpenAPIErrorCallback(code=int(rt["code"]), message=rt["message"])
                 logger.error("[QQAPI.commonApi] OpenAPI错误: {}", cb, style="bold red")
                 return cb
+
             return rt
 
         except Exception as e:
@@ -152,12 +156,12 @@ class QQAPI:
         self,
         target_type: Literal["group", "c2c"],
         target_id: str,
-        file_type: Literal[1, 2, 3, 4],
+        file_type: int,
         url: Optional[str] = None,
         file_data: Optional[bytes] = None,
         file_path: Optional[PathLike] = None,
         srv_send_msg: bool = False,
-    ) -> str:
+    ) -> OpenAPIResponse:
         """
         统一的文件上传方法
 
@@ -383,9 +387,9 @@ class QQAPI:
         self,
         target_type: Literal["group", "c2c"],
         target_id: str,
-        message_data: dict,
+        message_data: MessageData,
         media_element: Optional[MediaElement] = None,
-    ) -> dict:
+    ) -> Union[OpenAPIResponse, OpenAPIErrorCallback]:
         """
         发送非频道消息的统一方法。
 
@@ -436,7 +440,7 @@ class QQAPI:
         target_id: str,
         message_data: dict,
         image: Optional[Image] = None,
-    ) -> dict:
+    ) -> Union[OpenAPIResponse, OpenAPIErrorCallback]:
         """
         发送频道消息的统一方法。
 
@@ -453,11 +457,10 @@ class QQAPI:
         if image:
             if image.url:
                 message_data["image"] = image.url
-
-        # 处理文件图片
-        if image:
-            if image.data or image.path:
+                response = await self.common_api(path, "POST", json=message_data)
+            elif image.data or image.path:
                 file_image = await image.as_data_bytes()
+                assert file_image
                 # remove none
                 data = {
                     message_data_key: message_data[message_data_key]
@@ -479,6 +482,8 @@ class QQAPI:
                     )
                 ).json()
 
+            else:
+                response = await self.common_api(path, "POST", json=message_data)
         else:
             response = await self.common_api(path, "POST", json=message_data)
         # 处理响应

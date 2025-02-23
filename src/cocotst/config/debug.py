@@ -1,6 +1,7 @@
 from typing import Optional
 
 from pydantic import BaseModel
+from regex import D
 
 
 class WebHookDebugConfig(BaseModel):
@@ -17,4 +18,4 @@ class DebugConfig(BaseModel):
 class DebugFlag(BaseModel):
     debug_flag: bool = False
     checked_debug_flags: bool = False
-    debug_config: Optional[DebugConfig] = None
+    debug_config: DebugConfig = DebugConfig()

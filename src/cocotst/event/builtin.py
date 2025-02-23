@@ -8,11 +8,11 @@ from cocotst.event import CocotstBaseEvent
 
 
 class DebugFlagSetup(CocotstBaseEvent):
-    debug_config: Optional[DebugConfig] = None
+    debug_config: DebugConfig = DebugConfig()
 
     class Dispatcher(BaseDispatcher):
         @staticmethod
-        async def catch(interface: DispatcherInterface["DebugFlagSetup"]):
+        async def catch(interface: DispatcherInterface["DebugFlagSetup"]):  # type: ignore
             if isinstance(interface.event, DebugFlagSetup):
                 if interface.annotation == DebugConfig:
                     return interface.event.debug_config

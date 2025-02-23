@@ -4,9 +4,10 @@ from typing import List, Optional, Union
 from graia.broadcast.entities.dispatcher import BaseDispatcher
 from graia.broadcast.interfaces.dispatcher import DispatcherInterface
 from pydantic import BaseModel, RootModel
-from cocotst.network.model.event_element.guild import  Mention, Member as GuildMember
+from cocotst.network.model.event_element.guild import Mention, Member as GuildMember
 from cocotst.network.model.event_element.normal import Group, Member as GroupMember, MessageScene
 from cocotst.network.model.event_element import Attachments
+
 
 class Author(BaseModel):
     """消息发送者"""
@@ -32,8 +33,6 @@ class Author(BaseModel):
                 self.avatar = f"https://q.qlogo.cn/qqapp/102130931/{self.member_openid}/640"
             elif self.user_openid:
                 self.avatar = f"https://q.qlogo.cn/qqapp/102130931/{self.user_openid}/640"
-
-
 
 
 class D(BaseModel):
@@ -68,7 +67,7 @@ class D(BaseModel):
     op_member_openid: Optional[str] = None
     """操作者的 openid, 仅在群消息中有效, 用于区分是谁操作关闭开启群消息推送"""
     group_openid: Optional[str] = None
-    
+
     # 以下字段为 C2C 专有字段
     openid: Optional[str] = None
     """用户的 openid, 仅在 C2C 中有效, 用于处理 C2C 事件"""
@@ -85,7 +84,7 @@ class Payload(BaseModel):
 
     class Dispatcher(BaseDispatcher):
         @staticmethod
-        async def catch(interface: DispatcherInterface["Payload"]):
+        async def catch(interface: DispatcherInterface):  # type: ignore
             if interface.annotation == Payload:
                 return interface.event
 
@@ -96,11 +95,3 @@ class Content(RootModel[str]):
     @property
     def content(self):
         return self.root
-    
-
-
-
-
-
-
-

@@ -5,6 +5,8 @@ from creart import it
 from graia.broadcast import Broadcast
 from graia.broadcast.entities.dispatcher import BaseDispatcher
 from graia.broadcast.interfaces.dispatcher import DispatcherInterface
+from graia.broadcast.interfaces.dispatcher import Dispatchable
+from launart.status import Phase
 from launart import Launart, Service
 from loguru import logger
 from richuru import install
@@ -127,8 +129,8 @@ class Cocotst:
 
         # 主动发送消息时，清除 event_id，msg_id
         if proactive:
-            target.event_id = None
-            target.target_id = None
+            target.event_id = ""
+            target.target_id = ""
 
         # 准备消息数据
         message_data = await self.api.prepare_message_data(
@@ -151,6 +153,8 @@ class Cocotst:
                 message_data=message_data,
                 media_element=element if isinstance(element, MediaElement) else None,
             )
+            if isinstance(response, OpenAPIErrorCallback):
+                return response
             return MessageSent(**response)
         except Exception as e:
             logger.error(f"[Cocotst.sendGroupMsg] 发送消息失败: {e}")
@@ -183,8 +187,8 @@ class Cocotst:
             raise ValueError("发送被动消息时必须提供 target.target_id 或 target.event_id")
 
         if proactive:
-            target.event_id = None
-            target.target_id = None
+            target.event_id = ""
+            target.target_id = ""
 
         message_data = await self.api.prepare_message_data(
             content=content,
@@ -205,7 +209,9 @@ class Cocotst:
                 message_data=message_data,
                 media_element=element if isinstance(element, MediaElement) else None,
             )
-            return MessageSent(**response)
+            if isinstance(response, OpenAPIErrorCallback):
+                return response
+            return MessageSent(id=response["id"],timestamp=response["timestamp"])
         except Exception as e:
             logger.error(f"[Cocotst.sendC2CMsg] 发送消息失败: {e}")
             raise
@@ -216,6 +222,9 @@ class Cocotst:
         content: str = " ",
         element: Optional[Element] = None,
         proactive: bool = False,
+        markdown: Optional[Markdown] = None,
+        ark: Optional[Ark] = None,
+        keyboard: Optional[Keyboard] = None,
     ) -> Union[MessageSent, OpenAPIErrorCallback]:
         """
         统一的消息发送接口，根据消息类型自动选择发送方式。
@@ -230,9 +239,9 @@ class Cocotst:
             消息发送结果
         """
         if isinstance(target, C2CMessage):
-            return await self.send_c2c_message(target.target, content, element, proactive)
+            return await self.send_c2c_message(target.target, content, element, markdown,keyboard, ark, proactive)
         if isinstance(target, GroupMessage):
-            return await self.send_group_message(target.target, content, element, proactive)
+            return await self.send_group_message(target.target, content, element, markdown,keyboard, ark, proactive)
         raise ValueError(f"Unsupported message type: {type(target)}")
 
     async def send_channel_message(
@@ -264,8 +273,8 @@ class Cocotst:
             raise ValueError("发送被动消息时必须提供 target.target_id 或 target.event_id")
 
         if proactive:
-            target.event_id = None
-            target.target_id = None
+            target.event_id = ""
+            target.target_id = ""
 
         message_data = await self.api.prepare_guild_message_data(
             content=content,
@@ -285,7 +294,9 @@ class Cocotst:
                 message_data=message_data,
                 image=image if isinstance(image, MediaElement) else None,
             )
-            return MessageSent(**response)
+            if isinstance(response, OpenAPIErrorCallback):
+                return response
+            return MessageSent(id=response["id"],timestamp=response["timestamp"])
         except Exception as e:
             logger.error(f"[Cocotst.sendChannelMsg] 发送消息失败: {e}")
             raise
@@ -333,7 +344,9 @@ class Cocotst:
                 message_data=message_data,
                 image=image if isinstance(image, MediaElement) else None,
             )
-            return MessageSent(**response)
+            if isinstance(response, OpenAPIErrorCallback):
+                return response
+            return MessageSent(id=response["id"],timestamp=response["timestamp"])
         except Exception as e:
             logger.error(f"[Cocotst.sendDMSMsg] 发送消息失败: {e}")
             raise
@@ -342,7 +355,10 @@ class Cocotst:
         self,
         target: MessageEvent,
         content: str = " ",
-        element: Optional[Element] = None,
+        image: Optional[Image] = None,
+        markdown: Optional[Markdown] = None,
+        ark: Optional[Ark] = None,
+        embed: Optional[Embed] = None,
         proactive: bool = False,
     ) -> Union[MessageSent, OpenAPIErrorCallback]:
         """
@@ -358,9 +374,10 @@ class Cocotst:
             消息发送结果
         """
         if isinstance(target, ChannelMessage):
-            return await self.send_channel_message(target.target, content, element, proactive)
+            return await self.send_channel_message(target.target, content, image, markdown, ark, embed, proactive)
         if isinstance(target, DirectMessage):
-            return await self.send_dms_message(target.target, content, element, proactive)
+            return await self.send_dms_message(target.target, content, image, markdown, ark, embed, proactive)
+        raise ValueError(f"Unsupported message type: {type(target)}")
 
     async def _get_target_id(self, target: Union[str, Target, MessageEvent]) -> str:
         """
@@ -626,19 +643,19 @@ class Cocotst:
 class CocotstDispatcher(BaseDispatcher):
     """Cocotst 的调度器实现"""
 
-    @staticmethod
-    async def catch(interface: DispatcherInterface):
+
+    async def catch(self,interface: DispatcherInterface):
         if interface.annotation == Cocotst:
             mgr = it(Launart)
             return mgr.get_component(App).app
 
 
-class ApplicationReady:
+class ApplicationReady(Dispatchable):
     """应用就绪事件类"""
 
     class Dispatcher(BaseDispatcher):
-        @staticmethod
-        async def catch(interface: DispatcherInterface):
+
+        async def catch(self,interface: DispatcherInterface):
             pass
 
 
@@ -649,7 +666,7 @@ class App(Service):
     app: Cocotst
 
     @property
-    def stages(self):
+    def stages(self) -> set[Phase]:
         return {"preparing", "blocking", "cleanup"}
 
     @property

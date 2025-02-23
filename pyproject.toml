@@ -1,6 +1,6 @@
 [project]
 name = "Cocotst"
-version = "0.1.0b1"
+version = "0.1.1"
 description = "Easily to code qqoffcial bot."
 authors = [
     {name = "Sibuxiangx", email = "sibuxiang@proton.me"},

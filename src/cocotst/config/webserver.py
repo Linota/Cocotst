@@ -13,7 +13,7 @@ class WebHookConfig(BaseModel):
 
 
 class FileServerConfig(BaseModel):
-    localpath: str = None
+    localpath: str = "/tmp"
     """本地文件路径"""
     remote_url: str = "/fileserver"
     """远程文件路径"""

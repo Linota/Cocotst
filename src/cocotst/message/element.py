@@ -15,16 +15,20 @@ class Element(BaseModel):
 class MediaElement(Element):
     """媒体消息元素"""
 
-    data: Optional[bytes] = None
+    data: Optional[bytes] = Field(b"", description="媒体资源数据")
+    """媒体资源数据"""
+    media_id: Optional[str] = Field("", description="媒体资源ID")
+    """媒体资源ID"""
+    media_url: Optional[str] = Field("", description="媒体资源链接")    
     """媒体资源链接"""
-    path: Optional[str] = None
+    path: Optional[str] = Field("", description="媒体资源路径")
     """媒体资源路径"""
-    type: Literal["image", "video", "voice", 4]
+    type: Literal["image", "video", "voice", "file"] = Field("", description="媒体资源类型")
     """媒体资源类型"""
-    url: Optional[str] = None
+    url: Optional[str] = Field("", description="媒体资源链接")
     """媒体资源链接"""
 
-    def __init__(self, data: Optional[bytes] = None, path: Optional[str] = None, url: Optional[str] = None):
+    def __init__(self, data: Optional[bytes] = b'', path: Optional[str] = "", url: Optional[str] = ""):
         try:
             assert data or path or url
         except AssertionError:

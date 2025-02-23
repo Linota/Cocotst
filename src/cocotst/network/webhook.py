@@ -167,8 +167,11 @@ def create_event(payload: Payload, config: EventConfig):
     event_args = {}
     for target_param, source_path in config.event_params.items():
         if source_path == PayloadPath.SPECIAL_GROUP:
+            assert payload.d.group_id is not None and payload.d.group_openid is not None
             event_args[target_param] = Group(group_id=payload.d.group_id, group_openid=payload.d.group_openid)
         elif source_path == PayloadPath.SPECIAL_MEMBER:
+            assert payload.d.author is not None
+            assert payload.d.author.member_openid is not None
             event_args[target_param] = Member(member_openid=payload.d.author.member_openid)
         else:
             value = payload
@@ -366,10 +369,10 @@ async def postevent(request):
     try:
         data = await request.json()
         logger.info("[Webhook] 收到新的 Webhook 请求")
-
-        if debug_flag.debug_flag and debug_flag.debug_config.webhook.print_webhook_data:
-            logger.info("[Webhook][调试] 请求数据:")
-            print(json.dumps(data, indent=4, ensure_ascii=False))
+        if debug_flag.debug_flag:
+            if debug_flag.debug_config.webhook.print_webhook_data:
+                logger.info("[Webhook][调试] 请求数据:")
+                print(json.dumps(data, indent=4, ensure_ascii=False))
 
         op = data["op"]
 

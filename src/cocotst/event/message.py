@@ -26,15 +26,59 @@ class MessageEvent(CocotstBaseEvent):
 
     class Dispatcher(BaseDispatcher):
         @staticmethod
-        async def catch(interface: DispatcherInterface["MessageEvent"]):
-            if isinstance(interface.event, MessageEvent):
+        async def catch(interface: DispatcherInterface["MessageEvent"]):  # type: ignore
+            if isinstance(interface.event, GroupMessage):
+                if interface.annotation == Content:
+                    return interface.event.content
+                if interface.annotation == Group:
+                    return interface.event.group
+                if interface.annotation == GroupMember:
+                    return interface.event.member
+                if interface.annotation == Target:
+                    return interface.event.target
+                if interface.annotation == Attachments:
+                    if interface.event.attachments is None:
+                        raise ExecutionStop
+                    return interface.event.attachments
+
+            if isinstance(interface.event, DirectMessage):
                 if interface.annotation == Content:
                     return interface.event.content
                 if interface.annotation == Author:
                     return interface.event.author
+                if interface.annotation == Target:
+                    return interface.event.target
+                if interface.annotation == Attachments:
+                    if interface.event.attachments is None:
+                        raise ExecutionStop
+                    return interface.event.attachments
+            if isinstance(interface.event, C2CMessage):
+                if interface.annotation == Content:
+                    return interface.event.content
+                if interface.annotation == Author:
+                    return interface.event.author
+                if interface.annotation == Target:
+                    return interface.event.target
+                if interface.annotation == Attachments:
+                    if interface.event.attachments is None:
+                        raise ExecutionStop
+                    return interface.event.attachments
+            if isinstance(interface.event, ChannelMessage):
+                if interface.annotation == Content:
+                    return interface.event.content
+                if interface.annotation == Author:
+                    return interface.event.author
+                if interface.annotation == Target:
+                    return interface.event.target
+                if interface.annotation == Attachments:
+                    if interface.event.attachments is None:
+                        raise ExecutionStop
+                    return interface.event.attachments
 
     @property
-    def target(self): ...
+    def target(self) -> Target:
+        """快速回复目标"""
+        raise NotImplementedError
 
 
 class GroupMessage(MessageEvent):
@@ -51,23 +95,6 @@ class GroupMessage(MessageEvent):
         """快速回复目标"""
         return Target(target_unit=self.group.group_openid, target_id=self.id)
 
-    class Dispatcher(BaseDispatcher):
-        @staticmethod
-        async def catch(interface: DispatcherInterface["GroupMessage"]):
-            if isinstance(interface.event, GroupMessage):
-                if interface.annotation == Content:
-                    return interface.event.content
-                if interface.annotation == Group:
-                    return interface.event.group
-                if interface.annotation == GroupMember:
-                    return interface.event.member
-                if interface.annotation == Target:
-                    return interface.event.target
-                if interface.annotation == Attachments:
-                    if interface.event.attachments is None:
-                        raise ExecutionStop
-                    return interface.event.attachments
-
 
 class C2CMessage(MessageEvent):
     """C2C 消息事件"""
@@ -78,22 +105,8 @@ class C2CMessage(MessageEvent):
     @property
     def target(self):
         """快速回复目标"""
+        assert self.author.user_openid
         return Target(target_unit=self.author.user_openid, target_id=self.id)
-
-    class Dispatcher(BaseDispatcher):
-        @staticmethod
-        async def catch(interface: DispatcherInterface["C2CMessage"]):
-            if isinstance(interface.event, C2CMessage):
-                if interface.annotation == Content:
-                    return interface.event.content
-                if interface.annotation == Author:
-                    return interface.event.author
-                if interface.annotation == Target:
-                    return interface.event.target
-                if interface.annotation == Attachments:
-                    if interface.event.attachments is None:
-                        raise ExecutionStop
-                    return interface.event.attachments
 
 
 class ChannelMessage(MessageEvent):
@@ -118,21 +131,6 @@ class ChannelMessage(MessageEvent):
     def target(self):
         """快速回复目标"""
         return Target(target_unit=self.channel_id, target_id=self.id)
-
-    class Dispatcher(BaseDispatcher):
-        @staticmethod
-        async def catch(interface: DispatcherInterface["ChannelMessage"]):
-            if isinstance(interface.event, ChannelMessage):
-                if interface.annotation == Content:
-                    return interface.event.content
-                if interface.annotation == Author:
-                    return interface.event.author
-                if interface.annotation == Target:
-                    return interface.event.target
-                if interface.annotation == Attachments:
-                    if interface.event.attachments is None:
-                        raise ExecutionStop
-                    return interface.event.attachments
 
 
 class DirectMessage(MessageEvent):
@@ -159,21 +157,6 @@ class DirectMessage(MessageEvent):
     def target(self):
         """快速回复目标"""
         return Target(target_unit=self.guild_id, target_id=self.id)
-
-    class Dispatcher(BaseDispatcher):
-        @staticmethod
-        async def catch(interface: DispatcherInterface["DirectMessage"]):
-            if isinstance(interface.event, DirectMessage):
-                if interface.annotation == Content:
-                    return interface.event.content
-                if interface.annotation == Author:
-                    return interface.event.author
-                if interface.annotation == Target:
-                    return interface.event.target
-                if interface.annotation == Attachments:
-                    if interface.event.attachments is None:
-                        raise ExecutionStop
-                    return interface.event.attachments
 
 
 class MessageSent(CocotstBaseEvent):

@@ -14,9 +14,9 @@ class ContentDecorator(abc.ABC, Decorator, Derive[Content]):
     pre = True
 
     @abc.abstractmethod
-    async def __call__(self, content: Content, interface: DispatcherInterface) -> Optional[Content]: ...
+    async def __call__(self, content: Content, interface: DispatcherInterface) -> Content: ...
 
-    async def target(self, interface: DecoratorInterface):
+    async def target(self, interface: DecoratorInterface):  # type: ignore
         return await self(
             await interface.dispatcher_interface.lookup_param("content", Content, None),
             interface.dispatcher_interface,
@@ -34,7 +34,7 @@ class DetectPrefix(ContentDecorator):
         """
         self.prefix: List[str] = [prefix] if isinstance(prefix, str) else list(prefix)
 
-    async def __call__(self, content: Content, _) -> Optional[Content]:
+    async def __call__(self, content: Content, _) -> Content:
         for prefix in self.prefix:
             if content.content.startswith(prefix):
                 return Content(content.content.removeprefix(prefix).removeprefix(" "))
@@ -53,7 +53,7 @@ class DetectSuffix(ContentDecorator):
         """
         self.suffix: List[str] = [suffix] if isinstance(suffix, str) else list(suffix)
 
-    async def __call__(self, content: Content, _) -> Optional[Content]:
+    async def __call__(self, content: Content, _) -> Content:
         for suffix in self.suffix:
             if content.content.endswith(suffix):
                 return Content(content.content.removesuffix(suffix).removesuffix(" "))
@@ -72,7 +72,7 @@ class ContainKeyword(ContentDecorator):
         """
         self.keyword: str = keyword
 
-    async def __call__(self, content: Content, _) -> Optional[Content]:
+    async def __call__(self, content: Content, _) -> Content:
         if self.keyword in content.content:
             return content
         raise ExecutionStop
@@ -90,7 +90,7 @@ class QCommandMatcher(ContentDecorator):
         commands = [f" /{command}", f"/{command}", f" {command}", command]
         self.commands: List[str] = commands
 
-    async def __call__(self, content: Content, _) -> Optional[Content]:
+    async def __call__(self, content: Content, _) -> Content:
         for command in self.commands:
             if content.content.startswith(command):
                 return Content(content.content.removeprefix(command).removeprefix(" "))

@@ -6,6 +6,7 @@ from graia.broadcast.interfaces.dispatcher import DispatcherInterface
 from cocotst.network.model.target import Target
 from cocotst.event import CocotstBaseEvent
 
+
 class GroupAllowBotProactiveMessage(CocotstBaseEvent):
     """群打开消息推送"""
 
@@ -24,7 +25,7 @@ class GroupAllowBotProactiveMessage(CocotstBaseEvent):
 
     class Dispatcher(BaseDispatcher):
         @staticmethod
-        async def catch(interface: DispatcherInterface["GroupAllowBotProactiveMessage"]):
+        async def catch(interface: DispatcherInterface["GroupAllowBotProactiveMessage"]):  # type: ignore
             if isinstance(interface.event, GroupAllowBotProactiveMessage):
                 if interface.annotation == Target:
                     return interface.event.target
@@ -48,7 +49,7 @@ class GroupRejectBotProactiveMessage(CocotstBaseEvent):
 
     class Dispatcher(BaseDispatcher):
         @staticmethod
-        async def catch(interface: DispatcherInterface["GroupRejectBotProactiveMessage"]):
+        async def catch(interface: DispatcherInterface["GroupRejectBotProactiveMessage"]):  # type: ignore
             if isinstance(interface.event, GroupRejectBotProactiveMessage):
                 if interface.annotation == Target:
                     return interface.event.target
@@ -70,7 +71,7 @@ class C2CAllowBotProactiveMessage(CocotstBaseEvent):
 
     class Dispatcher(BaseDispatcher):
         @staticmethod
-        async def catch(interface: DispatcherInterface["C2CAllowBotProactiveMessage"]):
+        async def catch(interface: DispatcherInterface["C2CAllowBotProactiveMessage"]):  # type: ignore
             if isinstance(interface.event, C2CAllowBotProactiveMessage):
                 if interface.annotation == Target:
                     return interface.event.target
@@ -92,7 +93,7 @@ class C2CRejectBotProactiveMessage(CocotstBaseEvent):
 
     class Dispatcher(BaseDispatcher):
         @staticmethod
-        async def catch(interface: DispatcherInterface["C2CRejectBotProactiveMessage"]):
+        async def catch(interface: DispatcherInterface["C2CRejectBotProactiveMessage"]):  # type: ignore
             if isinstance(interface.event, C2CRejectBotProactiveMessage):
                 if interface.annotation == Target:
                     return interface.event.target
